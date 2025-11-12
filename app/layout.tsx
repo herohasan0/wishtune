@@ -8,8 +8,13 @@ const rubik = Rubik({
 });
 
 export const metadata: Metadata = {
-  title: "Wishtune",
-  description: "",
+  title: "WishTune - Create Celebration Songs",
+  description: "Create personalized songs for birthdays and special celebrations in just a few clicks",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+  },
 };
 
 export default function RootLayout({
