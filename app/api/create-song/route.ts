@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { canCreateSong, deductCreditForSong } from '@/lib/credits';
 
 interface SongRequest {
   name: string;
@@ -9,6 +11,19 @@ interface SongRequest {
 export async function POST(request: NextRequest) {
   try {
     console.log('🎵 Song creation request received');
+    
+    // Check authentication - require sign-in to track credits properly
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { 
+          error: 'Authentication required. Please sign in to create songs.',
+          requiresAuth: true 
+        },
+        { status: 401 }
+      );
+    }
+
     const body: SongRequest = await request.json();
     const { name, celebrationType, musicStyle } = body;
 
@@ -19,6 +34,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields: name, celebrationType, or musicStyle' },
         { status: 400 }
+      );
+    }
+
+    // Check if user has credits
+    const creditCheck = await canCreateSong(session.user.id);
+    if (!creditCheck.canCreate) {
+      return NextResponse.json(
+        { error: creditCheck.reason || 'Insufficient credits' },
+        { status: 403 }
       );
     }
 
@@ -93,6 +117,16 @@ export async function POST(request: NextRequest) {
         }
       ]
     };
+
+    // Deduct credit after successful song creation
+    const deductResult = await deductCreditForSong(session.user.id);
+    if (!deductResult.success) {
+      console.error('❌ Failed to deduct credit:', deductResult.error);
+      return NextResponse.json(
+        { error: 'Failed to process credit. Please try again.' },
+        { status: 500 }
+      );
+    }
 
     console.log('✅ Returning mock song with', mockSong.variations.length, 'variations');
     return NextResponse.json(mockSong, { status: 200 });

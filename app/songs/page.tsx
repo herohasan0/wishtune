@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import Header from '../components/Header';
 import BackgroundBlobs from '../components/BackgroundBlobs';
 import SongsHeroSection from '../components/SongsHeroSection';
 import PendingStatusBanner from '../components/PendingStatusBanner';
@@ -36,6 +38,7 @@ interface Song {
 export default function SongsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [song, setSong] = useState<Song | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [playingVariationId, setPlayingVariationId] = useState<string | null>(null);
@@ -122,6 +125,7 @@ export default function SongsPage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#FFF5EB] px-4 py-6 text-[#3F2A1F] sm:py-10">
       <BackgroundBlobs />
+      <Header />
 
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-10">
         <SongsHeroSection songName={song?.name} celebrationLabel={celebrationLabel} />
@@ -159,7 +163,7 @@ export default function SongsPage() {
               })}
             </div>
 
-            <SignUpSection />
+            {!session && <SignUpSection />}
           </>
         )}
       </div>
