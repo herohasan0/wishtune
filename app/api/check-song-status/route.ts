@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
           streamAudioUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2',
           imageUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2.jpeg',
           status: 'complete',
-          prompt: 'A joyful birthday celebration song for hamza. The song should be uplifting, celebratory, and include hamza\'s name in the lyrics. Make it heartfelt and memorable.',
+          prompt: 'A joyful birthday celebration song for hasan. The song should be uplifting, celebratory, and include hasan\'s name in the lyrics. Make it heartfelt and memorable.',
           tags: 'Pop'
         },
         {
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
           streamAudioUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1',
           imageUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1.jpeg',
           status: 'complete',
-          prompt: 'A joyful birthday celebration song for hamza. The song should be uplifting, celebratory, and include hamza\'s name in the lyrics. Make it heartfelt and memorable.',
+          prompt: 'A joyful birthday celebration song for hasan. The song should be uplifting, celebratory, and include hasan\'s name in the lyrics. Make it heartfelt and memorable.',
           tags: 'Pop'
         }
       ]
