@@ -9,6 +9,7 @@ import NameInput from './components/NameInput';
 import CelebrationTypeSelector from './components/CelebrationTypeSelector';
 import MusicStyleSelector from './components/MusicStyleSelector';
 import SignUpPrompt from './components/SignUpPrompt';
+import SignInPrompt from './components/SignInPrompt';
 import CreateButton from './components/CreateButton';
 import CreditStatus from './components/CreditStatus';
 import Footer from './components/Footer';
@@ -31,13 +32,39 @@ export default function Home() {
   const [credits, setCredits] = useState<CreditInfo | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(true);
   const [nameError, setNameError] = useState(false);
+  const [songsCreatedCount, setSongsCreatedCount] = useState<number>(0);
 
-  // Load credits from API
+  // Check localStorage for songs created count
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const count = localStorage.getItem('wishtune_songs_created');
+      setSongsCreatedCount(count ? parseInt(count, 10) : 0);
+    }
+  }, []);
+
+  // Load credits from API and merge anonymous song if needed
   useEffect(() => {
     if (sessionStatus === 'loading') return;
     
     if (session?.user) {
-      fetchCredits();
+      // Merge anonymous song if user had one before login
+      const mergeAnonymousSong = async () => {
+        if (typeof window !== 'undefined') {
+          const count = localStorage.getItem('wishtune_songs_created');
+          if (count === '1') {
+            try {
+              await fetch('/api/merge-anonymous-song', { method: 'POST' });
+              // Keep localStorage as 1, user can create one more
+            } catch (error) {
+              console.error('Error merging anonymous song:', error);
+            }
+          }
+        }
+      };
+      
+      mergeAnonymousSong().then(() => {
+        fetchCredits();
+      });
     } else {
       setCreditsLoading(false);
     }
@@ -57,9 +84,30 @@ export default function Home() {
     }
   };
 
-  const canCreateSong = credits 
-    ? (credits.freeSongsRemaining > 0 || credits.paidCredits > 0)
-    : true; // Allow first song before sign-in
+  // Determine if user can create a song
+  const canCreateSong = () => {
+    // If not logged in
+    if (!session?.user) {
+      // Allow first song if count is 0
+      return songsCreatedCount === 0;
+    }
+    
+    // If logged in, check credits and localStorage count
+    if (credits) {
+      // Allow if total songs created < 2 OR has paid credits
+      // Also check localStorage to ensure consistency
+      const localCount = typeof window !== 'undefined' ? parseInt(localStorage.getItem('wishtune_songs_created') || '0', 10) : 0;
+      const dbCount = credits.totalSongsCreated;
+      // Use the higher of the two counts to be safe
+      const effectiveCount = Math.max(localCount, dbCount);
+      return effectiveCount < 2 || credits.paidCredits > 0;
+    }
+    
+    // If credits not loaded yet, allow (will be checked on server)
+    return true;
+  };
+
+  const canCreate = canCreateSong();
 
   const celebrationTypes = [
     { id: 'birthday', label: 'Birthday', icon: '🎂' },
@@ -114,6 +162,27 @@ export default function Home() {
 
         const newSong = await response.json();
         
+        // Track song creation count
+        if (typeof window !== 'undefined') {
+          const currentCount = parseInt(localStorage.getItem('wishtune_songs_created') || '0', 10);
+          const newCount = currentCount + 1;
+          localStorage.setItem('wishtune_songs_created', newCount.toString());
+          setSongsCreatedCount(newCount);
+          
+          // If user is logged in and this is their second song, save to database
+          if (session?.user && newCount === 2) {
+            try {
+              await fetch('/api/save-song-count', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ count: 2 }),
+              });
+            } catch (error) {
+              console.error('Error saving song count to database:', error);
+            }
+          }
+        }
+        
         // Refresh credits after song creation
         if (session?.user) {
           await fetchCredits();
@@ -130,9 +199,12 @@ export default function Home() {
     }
   };
 
-  // Show form if user can create songs or hasn't signed in yet
-  const showForm = !session || canCreateSong;
-  const showSignUpPrompt = session && !canCreateSong;
+  // Show form if user can create songs
+  const showForm = canCreate;
+  // Show sign-in prompt if count is 1 and user is not logged in
+  const showSignInPrompt = !session && songsCreatedCount === 1;
+  // Show sign-up prompt if logged in but can't create (need credits)
+  const showSignUpPrompt = session && !canCreate;
 
   return (
     <main className="flex min-h-screen flex-col bg-[#FDF7F0] text-[#2F1E14]">
@@ -172,6 +244,8 @@ export default function Home() {
                   onSelect={setSelectedStyle}
                 />
               </>
+            ) : showSignInPrompt ? (
+              <SignInPrompt />
             ) : (
               <SignUpPrompt />
             )}

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const credits = await getUserCredits(session.user.id);
+    const credits = await getUserCredits(session.user.id, session.user.email);
     
     return NextResponse.json({
       credits: {

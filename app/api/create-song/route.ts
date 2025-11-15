@@ -12,18 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🎵 Song creation request received');
     
-    // Check authentication - require sign-in to track credits properly
     const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { 
-          error: 'Authentication required. Please sign in to create songs.',
-          requiresAuth: true 
-        },
-        { status: 401 }
-      );
-    }
-
     const body: SongRequest = await request.json();
     const { name, celebrationType, musicStyle } = body;
 
@@ -37,13 +26,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has credits
-    const creditCheck = await canCreateSong(session.user.id);
+    // Allow first song without authentication
+    if (!session?.user?.id) {
+      // Check if anonymous song was already created (via header or cookie)
+      // For now, we'll allow it and let the frontend track it
+      console.log('📝 Anonymous song creation - allowing first song');
+    } else {
+      // Check if user has credits (logged in users)
+    const creditCheck = await canCreateSong(session.user.id, session.user.email);
     if (!creditCheck.canCreate) {
       return NextResponse.json(
         { error: creditCheck.reason || 'Insufficient credits' },
         { status: 403 }
       );
+      }
     }
 
     // Mock response - return pending song with taskId for polling
@@ -118,14 +114,16 @@ export async function POST(request: NextRequest) {
       ]
     };
 
-    // Deduct credit after successful song creation
-    const deductResult = await deductCreditForSong(session.user.id);
+    // Deduct credit after successful song creation (only for logged-in users)
+    if (session?.user?.id) {
+    const deductResult = await deductCreditForSong(session.user.id, session.user.email);
     if (!deductResult.success) {
       console.error('❌ Failed to deduct credit:', deductResult.error);
       return NextResponse.json(
         { error: 'Failed to process credit. Please try again.' },
         { status: 500 }
       );
+      }
     }
 
     console.log('✅ Returning mock song with', mockSong.variations.length, 'variations');

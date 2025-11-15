@@ -8,6 +8,7 @@ const CREDITS_COLLECTION = 'userCredits';
 
 export interface UserCredits {
   userId: string;
+  email?: string | null;
   freeSongsUsed: number;
   paidCredits: number;
   totalSongsCreated: number;
@@ -18,17 +19,27 @@ export interface UserCredits {
 /**
  * Get user's credit information
  */
-export async function getUserCredits(userId: string): Promise<UserCredits> {
+export async function getUserCredits(userId: string, email?: string | null): Promise<UserCredits> {
   const creditRef = db.collection(CREDITS_COLLECTION).doc(userId);
   const creditSnap = await creditRef.get();
 
   if (creditSnap.exists) {
-    return creditSnap.data() as UserCredits;
+    const data = creditSnap.data() as UserCredits;
+    // Update email if provided and not already set
+    if (email && !data.email) {
+      await creditRef.update({
+        email,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return { ...data, email };
+    }
+    return data;
   }
 
   // Initialize new user with default credits
   await creditRef.set({
     userId,
+    email: email || null,
     freeSongsUsed: 0,
     paidCredits: 0,
     totalSongsCreated: 0,
@@ -42,28 +53,29 @@ export async function getUserCredits(userId: string): Promise<UserCredits> {
 }
 
 /**
- * Check if user can create a song (has free songs or paid credits)
+ * Check if user can create a song (allows 2 total songs, then requires paid credits)
  */
-export async function canCreateSong(userId: string): Promise<{ canCreate: boolean; reason?: string }> {
-  const credits = await getUserCredits(userId);
+export async function canCreateSong(userId: string, email?: string | null): Promise<{ canCreate: boolean; reason?: string }> {
+  const credits = await getUserCredits(userId, email);
   
-  const hasFreeSongs = credits.freeSongsUsed < FREE_SONGS_LIMIT;
+  // Allow creation if user has created less than 2 songs total, or has paid credits
+  const hasFreeSongsRemaining = credits.totalSongsCreated < 2;
   const hasPaidCredits = credits.paidCredits > 0;
 
-  if (hasFreeSongs || hasPaidCredits) {
+  if (hasFreeSongsRemaining || hasPaidCredits) {
     return { canCreate: true };
   }
 
   return { 
     canCreate: false, 
-    reason: 'You have used all free songs. Please purchase credits to create more songs.' 
+    reason: 'You have created 2 free songs. Please purchase credits to create more songs.' 
   };
 }
 
 /**
  * Deduct credit when creating a song (uses transaction for atomicity)
  */
-export async function deductCreditForSong(userId: string): Promise<{ success: boolean; error?: string }> {
+export async function deductCreditForSong(userId: string, email?: string | null): Promise<{ success: boolean; error?: string }> {
   try {
     const creditRef = db.collection(CREDITS_COLLECTION).doc(userId);
     
@@ -74,6 +86,7 @@ export async function deductCreditForSong(userId: string): Promise<{ success: bo
         // Initialize user credits
         transaction.set(creditRef, {
           userId,
+          email: email || null,
           freeSongsUsed: 1,
           paidCredits: 0,
           totalSongsCreated: 1,
@@ -83,18 +96,27 @@ export async function deductCreditForSong(userId: string): Promise<{ success: bo
         return;
       }
 
+      // Update email if provided and not already set
       const credits = creditSnap.data() as UserCredits;
-      const hasFreeSongs = credits.freeSongsUsed < FREE_SONGS_LIMIT;
+      if (email && !credits.email) {
+        transaction.update(creditRef, {
+          email,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Check if user has created less than 2 songs (free songs remaining)
+      const hasFreeSongsRemaining = credits.totalSongsCreated < 2;
       
-      if (hasFreeSongs) {
-        // Use free song
+      if (hasFreeSongsRemaining) {
+        // Use free song (increment totalSongsCreated)
         transaction.update(creditRef, {
           freeSongsUsed: FieldValue.increment(1),
           totalSongsCreated: FieldValue.increment(1),
           updatedAt: FieldValue.serverTimestamp(),
         });
       } else if (credits.paidCredits > 0) {
-        // Use paid credit
+        // Use paid credit (user has already created 2 songs)
         transaction.update(creditRef, {
           paidCredits: FieldValue.increment(-1),
           totalSongsCreated: FieldValue.increment(1),
@@ -118,20 +140,27 @@ export async function deductCreditForSong(userId: string): Promise<{ success: bo
 /**
  * Add paid credits to user account (for when they purchase)
  */
-export async function addPaidCredits(userId: string, amount: number): Promise<{ success: boolean; error?: string }> {
+export async function addPaidCredits(userId: string, amount: number, email?: string | null): Promise<{ success: boolean; error?: string }> {
   try {
     const creditRef = db.collection(CREDITS_COLLECTION).doc(userId);
     const creditSnap = await creditRef.get();
 
     if (creditSnap.exists) {
-      await creditRef.update({
+      const credits = creditSnap.data() as UserCredits;
+      const updateData: any = {
         paidCredits: FieldValue.increment(amount),
         updatedAt: FieldValue.serverTimestamp(),
-      });
+      };
+      // Update email if provided and not already set
+      if (email && !credits.email) {
+        updateData.email = email;
+      }
+      await creditRef.update(updateData);
     } else {
       // Initialize user if they don't exist
       await creditRef.set({
         userId,
+        email: email || null,
         freeSongsUsed: 0,
         paidCredits: amount,
         totalSongsCreated: 0,

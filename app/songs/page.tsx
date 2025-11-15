@@ -111,6 +111,42 @@ export default function SongsPage() {
     setSong(updatedSong);
   };
 
+  // Save song to database when it becomes complete
+  useEffect(() => {
+    if (!song || !session?.user || song.status !== 'complete') {
+      return;
+    }
+
+    // Check if all variations are ready
+    const allVariationsReady = song.variations.every(
+      (v) => v.status === 'complete' && v.audioUrl
+    );
+
+    if (allVariationsReady) {
+      const saveSongToDatabase = async () => {
+        try {
+          const response = await fetch('/api/songs/save', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(song),
+          });
+
+          if (response.ok) {
+            console.log('✅ Song saved to database');
+          } else {
+            console.error('❌ Failed to save song:', await response.text());
+          }
+        } catch (error) {
+          console.error('❌ Error saving song:', error);
+        }
+      };
+
+      saveSongToDatabase();
+    }
+  }, [song, session]);
+
   // Poll for song status if pending
   const isPolling = useSongPolling({
     song,
@@ -128,6 +164,21 @@ export default function SongsPage() {
       <Header />
 
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-10">
+        {/* iOS-style Back Button - Show when logged in */}
+        {session && (
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-2 self-start -ml-2 px-2 py-2 hover:opacity-70 transition-opacity mb-4"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#8F6C54]/30 bg-white/50">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#2F1E14]">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-[#2F1E14]">Create a Song</span>
+          </button>
+        )}
+        
         <SongsHeroSection songName={song?.name} celebrationLabel={celebrationLabel} />
 
         {showPending && (

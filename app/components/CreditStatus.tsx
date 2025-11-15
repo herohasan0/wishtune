@@ -45,9 +45,9 @@ export default function CreditStatus() {
     return null;
   }
 
-  const hasFreeSongs = credits.freeSongsRemaining > 0;
+  const hasFreeSongsRemaining = credits.totalSongsCreated < 2;
   const hasPaidCredits = credits.paidCredits > 0;
-  const canCreate = hasFreeSongs || hasPaidCredits;
+  const canCreate = hasFreeSongsRemaining || hasPaidCredits;
 
   return (
     <div className="mb-6 rounded-lg border border-[#F3E4D6] bg-white/95 p-4 shadow-sm">
@@ -55,9 +55,9 @@ export default function CreditStatus() {
         <div>
           <h3 className="text-sm font-semibold text-[#2F1E14]">Your Credits</h3>
           <div className="mt-1 flex gap-4 text-xs text-[#8F6C54]">
-            {hasFreeSongs && (
+            {hasFreeSongsRemaining && (
               <span>
-                🎁 {credits.freeSongsRemaining} free song{credits.freeSongsRemaining !== 1 ? 's' : ''} remaining
+                🎵 {2 - credits.totalSongsCreated} free song{2 - credits.totalSongsCreated !== 1 ? 's' : ''} remaining
               </span>
             )}
             {hasPaidCredits && (
