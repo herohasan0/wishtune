@@ -162,31 +162,8 @@ export default function Home() {
 
         const newSong = await response.json();
         
-        // Track song creation count
-        if (typeof window !== 'undefined') {
-          const currentCount = parseInt(localStorage.getItem('wishtune_songs_created') || '0', 10);
-          const newCount = currentCount + 1;
-          localStorage.setItem('wishtune_songs_created', newCount.toString());
-          setSongsCreatedCount(newCount);
-          
-          // If user is logged in and this is their second song, save to database
-          if (session?.user && newCount === 2) {
-            try {
-              await fetch('/api/save-song-count', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ count: 2 }),
-              });
-            } catch (error) {
-              console.error('Error saving song count to database:', error);
-            }
-          }
-        }
-        
-        // Refresh credits after song creation
-        if (session?.user) {
-          await fetchCredits();
-        }
+        // Credits and localStorage count will be updated when song is successfully created (status = 'complete')
+        // This happens in the songs page when the song becomes complete
         
         // Navigate to songs page with song data
         router.push(`/songs?data=${encodeURIComponent(JSON.stringify(newSong))}`);

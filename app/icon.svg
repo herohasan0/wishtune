@@ -1,0 +1,14 @@
+<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  {/* Musical note */}
+  <path
+    d="M9 3v8.5c0 1.38-1.12 2.5-2.5 2.5S4 12.88 4 11.5s1.12-2.5 2.5-2.5c.17 0 .34.02.5.05V3h2z"
+    fill="#F18A24"
+  />
+  <circle cx="6.5" cy="11.5" r="2" fill="#F18A24" />
+  {/* Star sparkle for wish */}
+  <path
+    d="M16 2l.5 1 1 .5-1 .5-.5 1-.5-1-1-.5 1-.5.5-1z"
+    fill="#F18A24"
+  />
+</svg>
+

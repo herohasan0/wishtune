@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { canCreateSong, deductCreditForSong } from '@/lib/credits';
+import { canCreateSong } from '@/lib/credits';
 
 interface SongRequest {
   name: string;
@@ -114,17 +114,8 @@ export async function POST(request: NextRequest) {
       ]
     };
 
-    // Deduct credit after successful song creation (only for logged-in users)
-    if (session?.user?.id) {
-    const deductResult = await deductCreditForSong(session.user.id, session.user.email);
-    if (!deductResult.success) {
-      console.error('❌ Failed to deduct credit:', deductResult.error);
-      return NextResponse.json(
-        { error: 'Failed to process credit. Please try again.' },
-        { status: 500 }
-      );
-      }
-    }
+    // Credits will be deducted when song is successfully created (status = 'complete')
+    // This happens in the songs page when the song becomes complete
 
     console.log('✅ Returning mock song with', mockSong.variations.length, 'variations');
     return NextResponse.json(mockSong, { status: 200 });

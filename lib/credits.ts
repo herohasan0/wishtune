@@ -73,10 +73,17 @@ export async function canCreateSong(userId: string, email?: string | null): Prom
 }
 
 /**
- * Deduct credit when creating a song (uses transaction for atomicity)
+ * Deduct credits when creating a song (uses transaction for atomicity)
+ * @param userId - User ID
+ * @param email - User email (optional)
+ * @param variationCount - Number of variations (songs) to deduct credits for
  */
-export async function deductCreditForSong(userId: string, email?: string | null): Promise<{ success: boolean; error?: string }> {
+export async function deductCreditForSong(userId: string, email?: string | null, variationCount: number = 1): Promise<{ success: boolean; error?: string }> {
   try {
+    if (variationCount <= 0) {
+      return { success: false, error: 'Invalid variation count' };
+    }
+
     const creditRef = db.collection(CREDITS_COLLECTION).doc(userId);
     
     await db.runTransaction(async (transaction) => {
@@ -84,12 +91,20 @@ export async function deductCreditForSong(userId: string, email?: string | null)
       
       if (!creditSnap.exists) {
         // Initialize user credits
+        const freeSongsToUse = Math.min(variationCount, 2); // Max 2 free songs
+        const paidCreditsToUse = Math.max(0, variationCount - freeSongsToUse);
+        
+        // For new users, they start with 0 paid credits, so if they need paid credits, throw error
+        if (paidCreditsToUse > 0) {
+          throw new Error('Insufficient credits');
+        }
+        
         transaction.set(creditRef, {
           userId,
           email: email || null,
-          freeSongsUsed: 1,
+          freeSongsUsed: freeSongsToUse,
           paidCredits: 0,
-          totalSongsCreated: 1,
+          totalSongsCreated: variationCount,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
@@ -105,26 +120,31 @@ export async function deductCreditForSong(userId: string, email?: string | null)
         });
       }
 
-      // Check if user has created less than 2 songs (free songs remaining)
-      const hasFreeSongsRemaining = credits.totalSongsCreated < 2;
-      
-      if (hasFreeSongsRemaining) {
-        // Use free song (increment totalSongsCreated)
-        transaction.update(creditRef, {
-          freeSongsUsed: FieldValue.increment(1),
-          totalSongsCreated: FieldValue.increment(1),
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-      } else if (credits.paidCredits > 0) {
-        // Use paid credit (user has already created 2 songs)
-        transaction.update(creditRef, {
-          paidCredits: FieldValue.increment(-1),
-          totalSongsCreated: FieldValue.increment(1),
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-      } else {
-        throw new Error('No credits available');
+      // Calculate how many free songs are remaining
+      const freeSongsRemaining = Math.max(0, 2 - credits.totalSongsCreated);
+      const freeSongsToUse = Math.min(variationCount, freeSongsRemaining);
+      const paidCreditsToUse = variationCount - freeSongsToUse;
+
+      // Check if user has enough credits
+      if (paidCreditsToUse > 0 && credits.paidCredits < paidCreditsToUse) {
+        throw new Error('Insufficient credits');
       }
+
+      // Update credits
+      const updates: any = {
+        totalSongsCreated: FieldValue.increment(variationCount),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      if (freeSongsToUse > 0) {
+        updates.freeSongsUsed = FieldValue.increment(freeSongsToUse);
+      }
+
+      if (paidCreditsToUse > 0) {
+        updates.paidCredits = FieldValue.increment(-paidCreditsToUse);
+      }
+
+      transaction.update(creditRef, updates);
     });
 
     return { success: true };

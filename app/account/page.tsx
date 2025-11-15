@@ -486,7 +486,7 @@ export default function AccountPage() {
                     <div className="text-2xl font-bold text-[#2F1E14]">
                       {credits.paidCredits}
                     </div>
-                    <div className="text-xs text-[#8F6C54]">credits</div>
+                    <div className="text-xs text-[#8F6C54]">credits/songs</div>
                   </div>
                 </div>
               </div>
@@ -515,25 +515,27 @@ export default function AccountPage() {
               {/* Summary */}
               <div className="mt-6 rounded-lg bg-[#F3E4D6]/50 p-4">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-[#2F1E14]">Total Available Credits:</span>
-                  <span className="text-xl font-bold text-[#2F1E14]">
-                    {credits.paidCredits}
-                  </span>
+                  <button
+                    onClick={() => {
+                      // TODO: Implement purchase credits flow
+                      alert('Credit purchase coming soon!');
+                    }}
+                    className="rounded-lg bg-[#F18A24] px-4 py-2 text-sm font-semibold text-white hover:bg-[#E07212] transition-colors"
+                  >
+                    Buy more credit
+                  </button>
+                  <div className="text-right">
+                    <div className="text-xl font-bold text-[#2F1E14]">
+                      {credits.paidCredits}
+                    </div>
+                    <div className="text-xs text-[#8F6C54]">credits available</div>
+                  </div>
                 </div>
                 {credits.paidCredits === 0 && (
                   <div className="mt-3 rounded-lg bg-orange-50 border border-orange-200 p-3">
                     <p className="text-sm text-orange-800">
                       ⚠️ You have no credits available. Purchase credits to create more songs!
                     </p>
-                    <button
-                      onClick={() => {
-                        // TODO: Implement purchase credits flow
-                        alert('Credit purchase coming soon!');
-                      }}
-                      className="mt-2 rounded-lg bg-[#8F6C54] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A5A45] transition-colors"
-                    >
-                      Buy Credits
-                    </button>
                   </div>
                 )}
               </div>

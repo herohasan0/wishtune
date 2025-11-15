@@ -16,14 +16,21 @@ export default function Header() {
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F18A24] text-white">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Musical note */}
               <path
-                d="M12 3C7.03 3 3 7.03 3 12c0 4.97 4.03 9 9 9 3.12 0 5.86-1.54 7.5-3.9l-2.55-1.36c-.96 1.39-2.6 2.26-4.43 2.26-2.95 0-5.33-2.38-5.33-5.33 0-2.95 2.38-5.33 5.33-5.33 1.83 0 3.47.92 4.43 2.31l2.55-1.36C17.86 4.51 15.12 3 12 3Z"
+                d="M9 3v8.5c0 1.38-1.12 2.5-2.5 2.5S4 12.88 4 11.5s1.12-2.5 2.5-2.5c.17 0 .34.02.5.05V3h2z"
+                fill="currentColor"
+              />
+              <circle cx="6.5" cy="11.5" r="2" fill="currentColor" />
+              {/* Star sparkle for wish */}
+              <path
+                d="M16 2l.5 1 1 .5-1 .5-.5 1-.5-1-1-.5 1-.5.5-1z"
                 fill="currentColor"
               />
             </svg>
           </div>
-          <span className="text-3xl font-extrabold">SongBird</span>
+          <span className="text-3xl font-extrabold">WishTune</span>
         </button>
         <div className="flex items-center gap-5">
           {session?.user ? (
