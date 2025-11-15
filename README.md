@@ -1,8 +1,46 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+# 🎉 WishTune
+
+Create personalized celebration songs for any special occasion using AI-powered music generation with Suno AI.
+
+## Features
+
+- 🎵 Generate custom songs with AI (Suno AI integration)
+- 🎂 Multiple celebration types (birthdays, anniversaries, weddings, etc.)
+- 🎸 Various music styles (pop, classical, jazz, rock, lullaby, disco)
+- ▶️ Built-in audio player
+- 📥 Download songs
+- 🔗 Share songs with friends
+
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+ installed
+- A Suno AI API key (see [SUNO_AI_SETUP.md](./SUNO_AI_SETUP.md))
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Set up your Suno AI API key:
+   - Create a `.env.local` file in the root directory
+   - Add your Suno AI API key:
+   
+```env
+SUNO_API_KEY=your_suno_api_key_here
+SUNO_API_BASE_URL=https://api.sunoapi.org/api/v1
+```
+
+For detailed setup instructions, see [SUNO_AI_SETUP.md](./SUNO_AI_SETUP.md).
+
+4. Run the development server:
 
 ```bash
 npm run dev
@@ -16,9 +54,45 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+wishtune/
+├── app/
+│   ├── api/
+│   │   └── create-song/    # Suno AI API integration
+│   ├── components/
+│   │   └── CelebrationGrid.tsx
+│   ├── songs/              # Songs display page
+│   ├── page.tsx            # Main form page
+│   └── layout.tsx
+├── public/
+│   └── grid/               # Celebration photos
+├── .env.local              # Environment variables (create this)
+└── SUNO_AI_SETUP.md        # Detailed setup guide
+```
+
+## How It Works
+
+1. **User Input**: Enter a name, select a celebration type, and choose a music style
+2. **Song Generation**: The app sends a request to Suno AI to generate unique song variations
+3. **Automatic Polling**: The app automatically checks every 5 seconds until songs are ready (30-60 seconds)
+4. **Playback**: Listen to, download, and share your personalized celebration songs
+
+**Works perfectly on localhost** - no ngrok or public URL required!
+
+## API Integration
+
+The app uses the Suno AI API to generate songs. The integration is handled server-side through Next.js API routes for security.
+
+**Key files:**
+- `/app/api/create-song/route.ts` - Server-side API handler for song creation
+- `/app/api/check-song-status/route.ts` - Polling endpoint to check song status
+- `/app/page.tsx` - Main form and song creation logic
+- `/app/songs/page.tsx` - Song playback, polling, and management
+
+For detailed API documentation, see [SUNO_AI_SETUP.md](./SUNO_AI_SETUP.md).
+For polling implementation details, see [POLLING_IMPLEMENTATION.md](./POLLING_IMPLEMENTATION.md).
 
 ## Learn More
 
