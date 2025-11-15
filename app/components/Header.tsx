@@ -1,4 +1,11 @@
+'use client';
+
+import { useSession, signIn, signOut } from 'next-auth/react';
+import Image from 'next/image';
+
 export default function Header() {
+  const { data: session } = useSession();
+
   return (
     <header className="w-full px-4 py-5 sm:px-6">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
@@ -14,9 +21,35 @@ export default function Header() {
           <span className="text-3xl font-extrabold">SongBird</span>
         </div>
         <div className="flex items-center gap-5">
-          <button className="rounded-full bg-[#F18A24] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#E07212]">
-            Log In
-          </button>
+          {session?.user ? (
+            <div className="flex items-center gap-3">
+              {session.user.image && (
+                <Image
+                  src={session.user.image}
+                  alt={session.user.name || 'User'}
+                  width={32}
+                  height={32}
+                  className="rounded-full"
+                />
+              )}
+              <span className="hidden text-sm font-medium text-[#2F1E14] sm:inline">
+                {session.user.name || session.user.email}
+              </span>
+              <button
+                onClick={() => signOut()}
+                className="rounded-full bg-[#F18A24] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#E07212]"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => signIn('google')}
+              className="rounded-full bg-[#F18A24] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#E07212]"
+            >
+              Log In
+            </button>
+          )}
         </div>
       </div>
     </header>

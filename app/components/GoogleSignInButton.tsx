@@ -1,3 +1,7 @@
+'use client';
+
+import { signIn } from 'next-auth/react';
+
 interface GoogleSignInButtonProps {
   onClick?: () => void;
   className?: string;
@@ -9,9 +13,17 @@ export default function GoogleSignInButton({
   className = '',
   text = 'Sign in with Google',
 }: GoogleSignInButtonProps) {
+  const handleClick = async () => {
+    if (onClick) {
+      onClick();
+    } else {
+      await signIn('google', { callbackUrl: '/' });
+    }
+  };
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       className={`flex items-center justify-center gap-3 rounded-full border border-[#E3D2C4] bg-white/95 px-6 py-4 text-base font-semibold text-[#3F2A1F] transition hover:-translate-y-0.5 ${className}`}
     >
       <svg className="h-5 w-5" viewBox="0 0 24 24">

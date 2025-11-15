@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Rubik } from "next/font/google";
 import "./globals.css";
+import SessionProvider from "./components/SessionProvider";
 
 const rubik = Rubik({
   subsets: ["latin"],
@@ -24,7 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={rubik.variable}>{children}</body>
+      <body className={rubik.variable}>
+        <SessionProvider>{children}</SessionProvider>
+      </body>
     </html>
   );
 }

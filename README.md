@@ -29,16 +29,39 @@ Create personalized celebration songs for any special occasion using AI-powered 
 npm install
 ```
 
-3. Set up your Suno AI API key:
+3. Set up your environment variables:
    - Create a `.env.local` file in the root directory
-   - Add your Suno AI API key:
+   - Add your API keys and configuration:
    
 ```env
+# Suno AI Configuration
 SUNO_API_KEY=your_suno_api_key_here
 SUNO_API_BASE_URL=https://api.sunoapi.org/api/v1
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+AUTH_SECRET=your_auth_secret_here
 ```
 
-For detailed setup instructions, see [SUNO_AI_SETUP.md](./SUNO_AI_SETUP.md).
+**Google OAuth Setup:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the Google+ API
+4. Go to "Credentials" → "Create Credentials" → "OAuth client ID"
+5. Choose "Web application"
+6. Add authorized redirect URIs:
+   - `http://localhost:3000/api/auth/callback/google` (for development)
+   - `https://yourdomain.com/api/auth/callback/google` (for production)
+7. Copy the Client ID and Client Secret to your `.env.local` file
+
+**Generate AUTH_SECRET:**
+You can generate a secure random string for `AUTH_SECRET` using:
+```bash
+openssl rand -base64 32
+```
+
+For detailed Suno AI setup instructions, see [SUNO_AI_SETUP.md](./SUNO_AI_SETUP.md).
 
 4. Run the development server:
 
