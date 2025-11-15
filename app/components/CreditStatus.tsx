@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface CreditInfo {
   freeSongsUsed: number;
@@ -12,6 +13,7 @@ interface CreditInfo {
 
 export default function CreditStatus() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [credits, setCredits] = useState<CreditInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -74,10 +76,7 @@ export default function CreditStatus() {
         </div>
         {!canCreate && (
           <button
-            onClick={() => {
-              // TODO: Implement purchase credits flow
-              alert('Credit purchase coming soon!');
-            }}
+            onClick={() => router.push('/buy-credits')}
             className="rounded-lg bg-[#8F6C54] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A5A45] transition-colors"
           >
             Buy Credits

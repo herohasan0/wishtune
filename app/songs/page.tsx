@@ -141,24 +141,23 @@ export default function SongsPage() {
             if (saveResponse.ok) {
               console.log('✅ Song saved to database');
               
-              // Deduct credits based on number of variations (songs) created
-              const variationCount = song.variations?.length || 1;
+              // Deduct 1 credit for the song (regardless of variations)
               const deductResponse = await fetch('/api/deduct-credit', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ variationCount }),
+                body: JSON.stringify({}),
               });
 
               if (deductResponse.ok) {
-                console.log(`✅ ${variationCount} credit(s) deducted successfully`);
+                console.log('✅ 1 credit deducted successfully');
                 setCreditDeducted(true);
                 
                 // Update localStorage count after successful credit deduction
                 if (typeof window !== 'undefined') {
                   const currentCount = parseInt(localStorage.getItem('wishtune_songs_created') || '0', 10);
-                  const newCount = currentCount + variationCount;
+                  const newCount = currentCount + 1;
                   localStorage.setItem('wishtune_songs_created', newCount.toString());
                   
                   // If user has reached 2 songs total, save count to database

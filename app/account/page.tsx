@@ -516,10 +516,7 @@ export default function AccountPage() {
               <div className="mt-6 rounded-lg bg-[#F3E4D6]/50 p-4">
                 <div className="flex items-center justify-between">
                   <button
-                    onClick={() => {
-                      // TODO: Implement purchase credits flow
-                      alert('Credit purchase coming soon!');
-                    }}
+                    onClick={() => router.push('/buy-credits')}
                     className="rounded-lg bg-[#F18A24] px-4 py-2 text-sm font-semibold text-white hover:bg-[#E07212] transition-colors"
                   >
                     Buy more credit

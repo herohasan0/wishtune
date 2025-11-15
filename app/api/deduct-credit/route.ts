@@ -4,7 +4,7 @@ import { deductCreditForSong } from '@/lib/credits';
 
 /**
  * POST /api/deduct-credit - Deduct credits when song is successfully created
- * Body: { variationCount: number } - Number of variations (songs) to deduct credits for
+ * Always deducts exactly 1 credit per song, regardless of variations
  */
 export async function POST(request: NextRequest) {
   try {
@@ -17,17 +17,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const variationCount = body.variationCount || 1;
-
-    if (typeof variationCount !== 'number' || variationCount <= 0) {
-      return NextResponse.json(
-        { error: 'Invalid variation count' },
-        { status: 400 }
-      );
-    }
-
-    const deductResult = await deductCreditForSong(session.user.id, session.user.email, variationCount);
+    const deductResult = await deductCreditForSong(session.user.id, session.user.email);
     
     if (!deductResult.success) {
       return NextResponse.json(
