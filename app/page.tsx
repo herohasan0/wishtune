@@ -182,6 +182,8 @@ export default function Home() {
   const showSignInPrompt = !session && songsCreatedCount === 1;
   // Show sign-up prompt if logged in but can't create (need credits)
   const showSignUpPrompt = session && !canCreate;
+  // Show loading skeleton when checking credits for logged-in users
+  const showFormLoading = session?.user && (sessionStatus === 'loading' || creditsLoading);
 
   return (
     <main className="flex min-h-screen flex-col bg-[#FDF7F0] text-[#2F1E14]">
@@ -194,7 +196,53 @@ export default function Home() {
           {session && <CreditStatus />}
           
           <div className="rounded-[36px] border border-[#F3E4D6] bg-white/95 p-6 shadow-[0_25px_80px_rgba(207,173,138,0.25)] sm:p-10 md:p-12">
-            {showForm ? (
+            {showFormLoading ? (
+              <>
+                {/* Loading skeleton for Name Input */}
+                <div className="space-y-3">
+                  <div className="h-4 w-48 animate-pulse rounded bg-[#F3E4D6]"></div>
+                  <div className="h-4 w-32 animate-pulse rounded bg-[#F3E4D6]"></div>
+                  <div className="h-14 w-full animate-pulse rounded-full bg-[#F3E4D6]"></div>
+                </div>
+
+                <Divider />
+
+                {/* Loading skeleton for Celebration Type Selector */}
+                <div>
+                  <div className="h-4 w-56 animate-pulse rounded bg-[#F3E4D6]"></div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div
+                        key={i}
+                        className="flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-transparent bg-[#FDF8F3] px-4 py-4"
+                      >
+                        <div className="h-8 w-8 animate-pulse rounded bg-[#F3E4D6]"></div>
+                        <div className="h-4 w-16 animate-pulse rounded bg-[#F3E4D6]"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Divider />
+
+                {/* Loading skeleton for Music Style Selector */}
+                <div>
+                  <div className="h-4 w-40 animate-pulse rounded bg-[#F3E4D6]"></div>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div
+                        key={i}
+                        className="flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-transparent bg-[#FFF8F1] px-5 py-5"
+                      >
+                        <div className="h-6 w-6 animate-pulse rounded bg-[#F3E4D6]"></div>
+                        <div className="h-4 w-12 animate-pulse rounded bg-[#F3E4D6]"></div>
+                        <div className="h-3 w-20 animate-pulse rounded bg-[#F3E4D6]"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : showForm ? (
               <>
                 <NameInput
                   name={name}
@@ -228,7 +276,7 @@ export default function Home() {
             )}
           </div>
 
-          {showForm && (
+          {showForm && !showFormLoading && (
             <CreateButton isLoading={isLoading} onClick={handleCreate} />
           )}
 

@@ -34,7 +34,7 @@ const creditPackages: CreditPackage[] = [
     id: 'popular',
     name: 'Popular',
     credits: 15,
-    price: 13.99,
+    price: 14.99,
     popular: true,
     description: 'Best value for regular users',
   },

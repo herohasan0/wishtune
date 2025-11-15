@@ -39,8 +39,20 @@ export default function CreditStatus() {
     }
   };
 
+  // Show loading skeleton to prevent layout shift
   if (!session || loading) {
-    return null;
+    return (
+      <div className="mb-6 rounded-lg border border-[#F3E4D6] bg-white/95 p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-[#2F1E14]">Your Credits</h3>
+            <div className="mt-1 flex gap-4 text-xs">
+              <div className="h-4 w-32 animate-pulse rounded bg-[#F3E4D6]"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!credits) {
