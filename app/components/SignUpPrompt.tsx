@@ -1,6 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import GoogleSignInButton from './GoogleSignInButton';
 
 export default function SignUpPrompt() {
@@ -23,15 +24,12 @@ export default function SignUpPrompt() {
           </p>
         </div>
         <div className="mx-auto flex max-w-md flex-col gap-3">
-          <button
-            onClick={() => {
-              // TODO: Implement purchase credits flow
-              alert('Credit purchase coming soon!');
-            }}
-            className="rounded-lg bg-[#8F6C54] px-6 py-3 text-base font-semibold text-white hover:bg-[#7A5A45] transition-colors"
+          <Link
+            href="/buy-credits"
+            className="rounded-lg bg-[#8F6C54] px-6 py-3 text-base font-semibold text-white hover:bg-[#7A5A45] transition-colors text-center"
           >
             Buy Credits
-          </button>
+          </Link>
         </div>
       </div>
     );

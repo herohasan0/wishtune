@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import Header from '../components/Header';
 import BackgroundBlobs from '../components/BackgroundBlobs';
 import SongsHeroSection from '../components/SongsHeroSection';
@@ -217,8 +218,8 @@ function SongsPageContent() {
       <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-10">
         {/* iOS-style Back Button - Show when logged in */}
         {session && (
-          <button
-            onClick={() => router.push('/')}
+          <Link
+            href="/"
             className="flex items-center gap-2 self-start -ml-2 px-2 py-2 hover:opacity-70 transition-opacity mb-4"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#8F6C54]/30 bg-white/50">
@@ -227,7 +228,7 @@ function SongsPageContent() {
               </svg>
             </div>
             <span className="text-sm font-medium text-[#2F1E14]">Create a Song</span>
-          </button>
+          </Link>
         )}
         
         <SongsHeroSection songName={song?.name} celebrationLabel={celebrationLabel} />

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface CreditInfo {
   freeSongsUsed: number;
@@ -13,7 +13,6 @@ interface CreditInfo {
 
 export default function CreditStatus() {
   const { data: session } = useSession();
-  const router = useRouter();
   const [credits, setCredits] = useState<CreditInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -87,12 +86,12 @@ export default function CreditStatus() {
           </div>
         </div>
         {!canCreate && (
-          <button
-            onClick={() => router.push('/buy-credits')}
-            className="rounded-lg bg-[#8F6C54] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A5A45] transition-colors"
+          <Link
+            href="/buy-credits"
+            className="rounded-lg bg-[#8F6C54] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A5A45] transition-colors inline-block"
           >
             Buy Credits
-          </button>
+          </Link>
         )}
       </div>
     </div>

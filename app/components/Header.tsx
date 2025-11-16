@@ -1,18 +1,17 @@
 'use client';
 
 import { useSession, signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 
 export default function Header() {
   const { data: session } = useSession();
-  const router = useRouter();
 
   return (
     <header className="w-full px-4 py-5 sm:px-6">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
-        <button
-          onClick={() => router.push('/')}
+        <Link
+          href="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F18A24] text-white">
@@ -31,11 +30,11 @@ export default function Header() {
             </svg>
           </div>
           <span className="text-3xl font-extrabold">WishTune</span>
-        </button>
+        </Link>
         <div className="flex items-center gap-5">
           {session?.user ? (
-            <button
-              onClick={() => router.push('/account')}
+            <Link
+              href="/account"
               className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-[#FFF5EB] transition-colors"
             >
               {session.user.image ? (
@@ -54,7 +53,7 @@ export default function Header() {
               <span className="text-sm font-medium text-[#2F1E14]">
                 My Songs
               </span>
-            </button>
+            </Link>
           ) : (
             <button
               onClick={() => signIn('google')}

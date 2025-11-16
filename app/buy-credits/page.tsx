@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import axios from 'axios';
 import Header from '../components/Header';
 import BackgroundBlobs from '../components/BackgroundBlobs';
@@ -222,8 +223,8 @@ export default function BuyCreditsPage() {
 
       <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-8">
         {/* Back Button */}
-        <button
-          onClick={() => router.push('/account')}
+        <Link
+          href="/account"
           className="flex items-center gap-2 self-start -ml-2 px-2 py-2 hover:opacity-70 transition-opacity"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#8F6C54]/30 bg-white/50">
@@ -232,7 +233,7 @@ export default function BuyCreditsPage() {
             </svg>
           </div>
           <span className="text-sm font-medium text-[#2F1E14]">My Account</span>
-        </button>
+        </Link>
 
         {/* Header */}
         <div className="text-center">
@@ -373,12 +374,12 @@ export default function BuyCreditsPage() {
 
         {/* Back to Account */}
         <div className="text-center">
-          <button
-            onClick={() => router.push('/account')}
-            className="text-sm font-medium text-[#8F6C54] hover:text-[#2F1E14] transition-colors"
+          <Link
+            href="/account"
+            className="text-sm font-medium text-[#8F6C54] hover:text-[#2F1E14] transition-colors inline-block"
           >
             ← Back to My Account
-          </button>
+          </Link>
         </div>
       </div>
 

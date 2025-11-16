@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import Header from '../components/Header';
 import BackgroundBlobs from '../components/BackgroundBlobs';
@@ -142,8 +143,8 @@ export default function AccountPage() {
 
       <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col gap-8">
         {/* iOS-style Back Button */}
-        <button
-          onClick={() => router.push('/')}
+        <Link
+          href="/"
           className="flex items-center gap-2 self-start -ml-2 px-2 py-2 hover:opacity-70 transition-opacity"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#8F6C54]/30 bg-white/50">
@@ -152,7 +153,7 @@ export default function AccountPage() {
             </svg>
           </div>
           <span className="text-sm font-medium text-[#2F1E14]">Create a Song</span>
-        </button>
+        </Link>
 
         <div className="text-center">
           <h1 className="text-4xl font-extrabold text-[#2F1E14] sm:text-5xl">My Account</h1>
@@ -242,12 +243,12 @@ export default function AccountPage() {
                 <p className="text-sm text-[#8F6C54] mb-6">
                   Create your first song to see it here!
                 </p>
-                <button
-                  onClick={() => router.push('/')}
-                  className="rounded-lg bg-[#F18A24] px-6 py-3 text-sm font-semibold text-white hover:bg-[#E07212] transition-colors"
+                <Link
+                  href="/"
+                  className="rounded-lg bg-[#F18A24] px-6 py-3 text-sm font-semibold text-white hover:bg-[#E07212] transition-colors inline-block"
                 >
                   Create a Song
-                </button>
+                </Link>
               </div>
             ) : (
               <div className="space-y-6">
@@ -515,12 +516,12 @@ export default function AccountPage() {
               {/* Summary */}
               <div className="mt-6 rounded-lg bg-[#F3E4D6]/50 p-4">
                 <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => router.push('/buy-credits')}
-                    className="rounded-lg bg-[#F18A24] px-4 py-2 text-sm font-semibold text-white hover:bg-[#E07212] transition-colors"
+                  <Link
+                    href="/buy-credits"
+                    className="rounded-lg bg-[#F18A24] px-4 py-2 text-sm font-semibold text-white hover:bg-[#E07212] transition-colors inline-block"
                   >
                     Buy more credit
-                  </button>
+                  </Link>
                   <div className="text-right">
                     <div className="text-xl font-bold text-[#2F1E14]">
                       {credits.paidCredits}
@@ -547,12 +548,12 @@ export default function AccountPage() {
 
         {/* Create Song Button at Bottom */}
         <div className="text-center pt-4">
-          <button
-            onClick={() => router.push('/')}
-            className="rounded-lg bg-[#F18A24] px-8 py-3 text-base font-semibold text-white hover:bg-[#E07212] transition-colors"
+          <Link
+            href="/"
+            className="rounded-lg bg-[#F18A24] px-8 py-3 text-base font-semibold text-white hover:bg-[#E07212] transition-colors inline-block"
           >
             Create a New Song
-          </button>
+          </Link>
         </div>
       </div>
     </main>
