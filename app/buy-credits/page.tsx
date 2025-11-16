@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 import Header from '../components/Header';
 import BackgroundBlobs from '../components/BackgroundBlobs';
+import Payment from '../components/Payment';
 
 interface CreditInfo {
   freeSongsUsed: number;
@@ -28,7 +30,24 @@ export default function BuyCreditsPage() {
   const [credits, setCredits] = useState<CreditInfo | null>(null);
   const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<CreditPackage | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [formResponse, setFormResponse] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    surname: '',
+    email: '',
+    phone: '',
+    identityNumber: '',
+    address: '',
+    city: '',
+    country: '',
+    shippingContactName: '',
+    billingContactName: '',
+  });
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -44,12 +63,8 @@ export default function BuyCreditsPage() {
 
   const fetchCredits = async () => {
     try {
-      const response = await fetch('/api/credits');
-      
-      if (response.ok) {
-        const data = await response.json();
-        setCredits(data.credits);
-      }
+      const response = await axios.get('/api/credits');
+      setCredits(response.data.credits);
     } catch (err) {
       console.error('Error fetching credits:', err);
     }
@@ -58,19 +73,11 @@ export default function BuyCreditsPage() {
   const fetchPackages = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/packages');
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📦 Packages fetched:', data);
-        const packages = data.packages || [];
-        console.log(`✅ Setting ${packages.length} packages`);
-        setCreditPackages(packages);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to fetch packages:', response.status, errorData);
-        setCreditPackages([]);
-      }
+      const response = await axios.get('/api/packages');
+      console.log('📦 Packages fetched:', response.data);
+      const packages = response.data.packages || [];
+      console.log(`✅ Setting ${packages.length} packages`);
+      setCreditPackages(packages);
     } catch (err) {
       console.error('Error fetching packages:', err);
       setCreditPackages([]);
@@ -80,14 +87,89 @@ export default function BuyCreditsPage() {
   };
 
   const handlePurchase = async (pkg: CreditPackage) => {
-    setPurchasing(pkg.id);
+    setSelectedPlan(pkg);
+    setShowForm(true);
+    // Pre-fill email from session if available
+    if (session?.user?.email) {
+      setFormData(prev => ({ ...prev, email: session.user.email || '' }));
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedPlan) return;
+
+    setSubmitting(true);
     
-    // TODO: Implement actual payment processing
-    // For now, this is a placeholder
-    setTimeout(() => {
-      alert(`Payment integration coming soon!\n\nPackage: ${pkg.name}\nCredits: ${pkg.credits}\nPrice: $${pkg.price.toFixed(2)}`);
-      setPurchasing(null);
-    }, 500);
+    const data = {
+      locale: "en",
+      price: selectedPlan.price,
+      paidPrice: selectedPlan.price,
+      currency: "USD",
+      callbackUrl: `${window.location.origin}/api/suno-callback`,
+      buyer: {
+        id: session?.user?.email?.replace(/[^a-zA-Z0-9]/g, '') || `BY${Date.now()}`,
+        name: formData.name,
+        surname: formData.surname,
+        identityNumber: formData.identityNumber || "11111111111",
+        email: formData.email,
+        gsmNumber: formData.phone,
+        registrationAddress: formData.address,
+        city: formData.city,
+        country: formData.country,
+      },
+      shippingAddress: {
+        address: formData.address,
+        contactName: formData.shippingContactName || `${formData.name} ${formData.surname}`,
+        city: formData.city,
+        country: formData.country
+      },
+      billingAddress: {
+        address: formData.address,
+        contactName: formData.billingContactName || `${formData.name} ${formData.surname}`,
+        city: formData.city,
+        country: formData.country
+      },
+      basketItems: [
+        {
+          id: selectedPlan.id,
+          price: selectedPlan.price,
+          name: selectedPlan.name,
+          category1: "Credits",
+          itemType: "VIRTUAL"
+        }
+      ]
+    };
+
+    try {
+      const response = await axios.post("/api/initialize-form", data);
+      setFormResponse(response.data?.checkoutFormContent);
+      setShowForm(false);
+    } catch (error) {
+      console.error("Error initializing form:", error);
+      alert("Failed to initialize payment. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setSelectedPlan(null);
+    setFormResponse(null);
+    // Reset form data
+    setFormData({
+      name: '',
+      surname: '',
+      email: session?.user?.email || '',
+      phone: '',
+      identityNumber: '',
+      address: '',
+      city: '',
+      country: '',
+      shippingContactName: '',
+      billingContactName: '',
+    });
   };
 
   if (status === 'loading' || loading) {
@@ -106,6 +188,32 @@ export default function BuyCreditsPage() {
 
   if (!session?.user) {
     return null; // Will redirect
+  }
+
+  // Show payment form if we have a response
+  if (formResponse) {
+    return (
+      <main className="relative min-h-screen overflow-hidden bg-[#FFF5EB] px-4 py-6 text-[#3F2A1F] sm:py-10">
+        <BackgroundBlobs />
+        <Header />
+        <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-8">
+          <button
+            onClick={handleCloseForm}
+            className="flex items-center gap-2 self-start -ml-2 px-2 py-2 hover:opacity-70 transition-opacity"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#8F6C54]/30 bg-white/50">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#2F1E14]">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-[#2F1E14]">Back</span>
+          </button>
+          <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-6 shadow-sm">
+            <Payment formResponse={formResponse} />
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -163,7 +271,6 @@ export default function BuyCreditsPage() {
         ) : (
           <div className="grid gap-6 md:grid-cols-3">
             {creditPackages.map((pkg) => {
-            const isPurchasing = purchasing === pkg.id;
             const pricePerCredit = (pkg.price / pkg.credits).toFixed(2);
             
             return (
@@ -207,14 +314,13 @@ export default function BuyCreditsPage() {
 
                 <button
                   onClick={() => handlePurchase(pkg)}
-                  disabled={isPurchasing}
                   className={`w-full rounded-lg px-4 py-3 text-sm font-semibold text-white transition-all ${
                     pkg.popular
                       ? 'bg-[#F18A24] hover:bg-[#E07212]'
                       : 'bg-[#8F6C54] hover:bg-[#7A5A45]'
-                  } ${isPurchasing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  }`}
                 >
-                  {isPurchasing ? 'Processing...' : 'Purchase'}
+                  Purchase
                 </button>
               </div>
             );
@@ -276,6 +382,171 @@ export default function BuyCreditsPage() {
           </button>
         </div>
       </div>
+
+      {/* User Information Form Modal */}
+      {showForm && selectedPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border border-[#F3E4D6] bg-white shadow-lg">
+            <div className="sticky top-0 bg-white border-b border-[#F3E4D6] px-6 py-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-[#2F1E14]">Complete Your Purchase</h2>
+              <button
+                onClick={handleCloseForm}
+                className="text-[#8F6C54] hover:text-[#2F1E14] transition-colors"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {/* Selected Plan Info */}
+              <div className="mb-6 rounded-lg border border-[#F3E4D6] bg-[#FFF5EB] p-4">
+                <h3 className="text-lg font-semibold text-[#2F1E14]">{selectedPlan.name}</h3>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-[#F18A24]">${selectedPlan.price.toFixed(2)}</span>
+                  <span className="text-sm text-[#8F6C54]">for {selectedPlan.credits} credits</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleFormSubmit} className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-[#2F1E14] mb-1">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="surname" className="block text-sm font-medium text-[#2F1E14] mb-1">
+                      Last Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="surname"
+                      required
+                      value={formData.surname}
+                      onChange={(e) => setFormData(prev => ({ ...prev, surname: e.target.value }))}
+                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-[#2F1E14] mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-[#2F1E14] mb-1">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="+1234567890"
+                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="identityNumber" className="block text-sm font-medium text-[#2F1E14] mb-1">
+                      Identity Number
+                    </label>
+                    <input
+                      type="text"
+                      id="identityNumber"
+                      value={formData.identityNumber}
+                      onChange={(e) => setFormData(prev => ({ ...prev, identityNumber: e.target.value }))}
+                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="address" className="block text-sm font-medium text-[#2F1E14] mb-1">
+                    Address *
+                  </label>
+                  <input
+                    type="text"
+                    id="address"
+                    required
+                    value={formData.address}
+                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-medium text-[#2F1E14] mb-1">
+                      City *
+                    </label>
+                    <input
+                      type="text"
+                      id="city"
+                      required
+                      value={formData.city}
+                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="country" className="block text-sm font-medium text-[#2F1E14] mb-1">
+                      Country *
+                    </label>
+                    <input
+                      type="text"
+                      id="country"
+                      required
+                      value={formData.country}
+                      onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={handleCloseForm}
+                    className="flex-1 rounded-lg border border-[#F3E4D6] px-4 py-3 text-sm font-semibold text-[#8F6C54] hover:bg-[#FFF5EB] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 rounded-lg bg-[#F18A24] px-4 py-3 text-sm font-semibold text-white hover:bg-[#E07212] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? 'Processing...' : 'Continue to Payment'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
