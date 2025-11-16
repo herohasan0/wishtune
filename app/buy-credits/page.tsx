@@ -22,35 +22,11 @@ interface CreditPackage {
   description: string;
 }
 
-const creditPackages: CreditPackage[] = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    credits: 5,
-    price: 5.99,
-    description: 'Perfect for trying out WishTune',
-  },
-  {
-    id: 'popular',
-    name: 'Popular',
-    credits: 15,
-    price: 14.99,
-    popular: true,
-    description: 'Best value for regular users',
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    credits: 30,
-    price: 24.99,
-    description: 'For power users and creators',
-  },
-];
-
 export default function BuyCreditsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [credits, setCredits] = useState<CreditInfo | null>(null);
+  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
 
@@ -63,11 +39,11 @@ export default function BuyCreditsPage() {
     }
 
     fetchCredits();
+    fetchPackages();
   }, [session, status, router]);
 
   const fetchCredits = async () => {
     try {
-      setLoading(true);
       const response = await fetch('/api/credits');
       
       if (response.ok) {
@@ -76,6 +52,28 @@ export default function BuyCreditsPage() {
       }
     } catch (err) {
       console.error('Error fetching credits:', err);
+    }
+  };
+
+  const fetchPackages = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/packages');
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📦 Packages fetched:', data);
+        const packages = data.packages || [];
+        console.log(`✅ Setting ${packages.length} packages`);
+        setCreditPackages(packages);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to fetch packages:', response.status, errorData);
+        setCreditPackages([]);
+      }
+    } catch (err) {
+      console.error('Error fetching packages:', err);
+      setCreditPackages([]);
     } finally {
       setLoading(false);
     }
@@ -158,8 +156,13 @@ export default function BuyCreditsPage() {
         )}
 
         {/* Credit Packages */}
-        <div className="grid gap-6 md:grid-cols-3">
-          {creditPackages.map((pkg) => {
+        {creditPackages.length === 0 ? (
+          <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-6 shadow-sm text-center">
+            <p className="text-[#8F6C54]">No credit packages available at the moment. Please check back later.</p>
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-3">
+            {creditPackages.map((pkg) => {
             const isPurchasing = purchasing === pkg.id;
             const pricePerCredit = (pkg.price / pkg.credits).toFixed(2);
             
@@ -216,7 +219,8 @@ export default function BuyCreditsPage() {
               </div>
             );
           })}
-        </div>
+          </div>
+        )}
 
         {/* Contact Section */}
         <div className="rounded-lg border border-[#F3E4D6] bg-gradient-to-r from-[#FFF5EB] to-white p-6 shadow-sm">
