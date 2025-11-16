@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import axios from 'axios';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import NameInput from './components/NameInput';
@@ -143,33 +144,34 @@ export default function Home() {
       
       try {
         // Call Suno AI API route
-        const response = await fetch('/api/create-song', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: name.trim(),
-            celebrationType: celebrationType,
-            musicStyle: selectedStyle,
-          }),
+        const response = await axios.post('/api/create-song', {
+          name: name.trim(),
+          celebrationType: celebrationType,
+          musicStyle: selectedStyle,
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create song');
-        }
-
-        const newSong = await response.json();
+        const newSong = response.data;
         
         // Credits and localStorage count will be updated when song is successfully created (status = 'complete')
         // This happens in the songs page when the song becomes complete
         
-        // Navigate to songs page with song data
-        router.push(`/songs?data=${encodeURIComponent(JSON.stringify(newSong))}`);
+        // Store song data in sessionStorage instead of URL to keep URL clean
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('wishtune_new_song', JSON.stringify(newSong));
+          // Use window.location.href for full page navigation to ensure sessionStorage is available
+          window.location.href = '/songs';
+          return; // Exit early since we're navigating away
+        }
+        
+        // Fallback to router.push if window is not available (shouldn't happen in browser)
+        router.push('/songs');
       } catch (error) {
         console.error('Error creating song:', error);
-        alert(error instanceof Error ? error.message : 'Failed to create song. Please try again.');
+        if (axios.isAxiosError(error) && error.response?.data?.error) {
+          alert(error.response.data.error);
+        } else {
+          alert(error instanceof Error ? error.message : 'Failed to create song. Please try again.');
+        }
       } finally {
         setIsLoading(false);
       }

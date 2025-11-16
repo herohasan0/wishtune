@@ -123,3 +123,20 @@ body {
   border-color: #e5d6c9;
   box-shadow: none;
 }
+
+/* Sound wave animation for loading */
+@keyframes sound-wave {
+  0%, 100% {
+    transform: scaleY(0.2);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.sound-wave-bar {
+  animation: sound-wave 0.8s ease-in-out infinite;
+  transform-origin: bottom;
+}

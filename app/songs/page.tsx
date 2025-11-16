@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Header from '../components/Header';
@@ -38,32 +38,40 @@ interface Song {
 
 function SongsPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const [song, setSong] = useState<Song | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [playingVariationId, setPlayingVariationId] = useState<string | null>(null);
   const [creditDeducted, setCreditDeducted] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // Load song from URL params - this is the correct place to set initial state from URL
-    const songData = searchParams.get('data');
-    if (songData) {
-      try {
-        const parsedSong = JSON.parse(decodeURIComponent(songData));
-        setSong(parsedSong);
-        // Reset credit deducted flag for new song
-        setCreditDeducted(false);
-      } catch (error) {
-        console.error('Error parsing song data:', error);
+    // Mark as mounted to avoid hydration mismatch
+    setIsMounted(true);
+    
+    // Read from sessionStorage after mount (client-side only)
+    if (typeof window !== 'undefined') {
+      const songData = sessionStorage.getItem('wishtune_new_song');
+      if (songData) {
+        try {
+          const parsedSong = JSON.parse(songData);
+          setSong(parsedSong);
+          // Clear sessionStorage after reading
+          sessionStorage.removeItem('wishtune_new_song');
+          // Reset credit deducted flag for new song
+          setCreditDeducted(false);
+        } catch (error) {
+          console.error('Error parsing song data:', error);
+          sessionStorage.removeItem('wishtune_new_song');
+          router.push('/');
+        }
+      } else {
+        // No song data, redirect to home
         router.push('/');
       }
-    } else {
-      // No song data, redirect to home
-      router.push('/');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, []);
 
 
   const handleShare = async (songId: string, variationId: string) => {
@@ -181,11 +189,10 @@ function SongsPageContent() {
               console.error('❌ Failed to save song:', await saveResponse.text());
             }
           } else {
-            // For anonymous users, just update localStorage count based on variations
+            // For anonymous users, update localStorage count (1 song = 1 count, regardless of variations)
             if (typeof window !== 'undefined') {
-              const variationCount = song.variations?.length || 1;
               const currentCount = parseInt(localStorage.getItem('wishtune_songs_created') || '0', 10);
-              const newCount = currentCount + variationCount;
+              const newCount = currentCount + 1;
               localStorage.setItem('wishtune_songs_created', newCount.toString());
               setCreditDeducted(true);
             }
@@ -233,38 +240,38 @@ function SongsPageContent() {
         
         <SongsHeroSection songName={song?.name} celebrationLabel={celebrationLabel} />
 
-        {showPending && (
-          <PendingStatusBanner message={song?.message} isPolling={isPolling} />
-        )}
-
-        {!song ? (
+        {!isMounted || !song ? (
           <LoadingState />
         ) : (
           <>
-            <div className="grid w-full gap-6 md:grid-cols-2">
-              {song.variations.map((variation, index) => {
-                const isPlaying = playingVariationId === variation.id;
-                const isReady =
-                  Boolean(variation.audioUrl) && variation.status !== 'pending';
+            {showPending ? (
+              <PendingStatusBanner message={song?.message} isPolling={isPolling} />
+            ) : (
+              <div className="grid w-full gap-6 md:grid-cols-2">
+                {song.variations.map((variation, index) => {
+                  const isPlaying = playingVariationId === variation.id;
+                  const isReady =
+                    Boolean(variation.audioUrl) && variation.status !== 'pending';
 
-                return (
-                  <SongVariationCard
-                    key={variation.id}
-                    variation={variation}
-                    index={index}
-                    songName={song.name}
-                    isPlaying={isPlaying}
-                    isReady={isReady}
-                    copiedId={copiedId}
-                          currentlyPlayingId={playingVariationId}
-                    onPlayStateChange={handlePlayStateChange}
-                    onDownload={handleDownload}
-                    onShare={handleShare}
-                    songId={song.id}
-                  />
-                );
-              })}
-            </div>
+                  return (
+                    <SongVariationCard
+                      key={variation.id}
+                      variation={variation}
+                      index={index}
+                      songName={song.name}
+                      isPlaying={isPlaying}
+                      isReady={isReady}
+                      copiedId={copiedId}
+                            currentlyPlayingId={playingVariationId}
+                      onPlayStateChange={handlePlayStateChange}
+                      onDownload={handleDownload}
+                      onShare={handleShare}
+                      songId={song.id}
+                    />
+                  );
+                })}
+              </div>
+            )}
 
             {!session && <SignUpSection />}
           </>
