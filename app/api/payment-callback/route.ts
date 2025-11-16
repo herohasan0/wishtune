@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import { generateAuthorizationForPostRequest } from '../../utils/encryp';
+import { auth } from '@/auth';
+import { addPaidCredits } from '@/lib/credits';
+import { getCreditPackageById } from '@/lib/packages';
 
 /**
  * Payment callback endpoint for iyzico
@@ -133,16 +136,87 @@ export async function POST(request: NextRequest) {
       console.log('Response Data:', JSON.stringify(detailResponse.data, null, 2));
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
-      // Return success response with detail API response
-      return NextResponse.json({ 
-        success: true,
-        message: 'Payment callback processed successfully',
-        callbackData: {
-          queryParams,
-          body: body || bodyText || null,
-        },
-        iyzicoDetailResponse: detailResponse.data
-      }, { status: 200 });
+      const detailData = detailResponse.data as {
+        paymentStatus?: string;
+        itemTransactions?: Array<{ itemId?: string }>;
+        [key: string]: unknown;
+      };
+      
+      // Check if payment was successful
+      if (detailData.paymentStatus === 'SUCCESS') {
+        console.log('✅ Payment status is SUCCESS - processing credit addition...');
+        
+        // Get user session
+        const session = await auth();
+        
+        if (!session?.user?.id) {
+          console.error('❌ No user session found');
+          // Return HTML page that redirects to login, then back to home
+          return new NextResponse(
+            `<!DOCTYPE html>
+<html>
+<head>
+  <title>Payment Successful</title>
+  <meta http-equiv="refresh" content="3;url=/" />
+</head>
+<body>
+  <h1>Payment Successful!</h1>
+  <p>Please sign in to receive your credits. Redirecting...</p>
+  <script>setTimeout(() => window.location.href = '/', 3000);</script>
+</body>
+</html>`,
+            {
+              status: 200,
+              headers: { 'Content-Type': 'text/html' },
+            }
+          );
+        }
+        
+        // Extract itemId from itemTransactions
+        const itemTransactions = detailData.itemTransactions || [];
+        if (itemTransactions.length === 0) {
+          console.error('❌ No item transactions found');
+          return NextResponse.redirect(new URL('/?error=no_items', request.url));
+        }
+        
+        const itemId = itemTransactions[0]?.itemId;
+        if (!itemId) {
+          console.error('❌ No itemId found in transactions');
+          return NextResponse.redirect(new URL('/?error=no_item_id', request.url));
+        }
+        
+        console.log('📦 Item ID:', itemId);
+        
+        // Get the package to find credit amount
+        const creditPackage = await getCreditPackageById(itemId);
+        if (!creditPackage) {
+          console.error(`❌ Package not found for itemId: ${itemId}`);
+          return NextResponse.redirect(new URL('/?error=package_not_found', request.url));
+        }
+        
+        console.log(`💰 Adding ${creditPackage.credits} credits to user ${session.user.id}`);
+        
+        // Add credits to user account
+        const addCreditsResult = await addPaidCredits(
+          session.user.id,
+          creditPackage.credits,
+          session.user.email || undefined
+        );
+        
+        if (!addCreditsResult.success) {
+          console.error('❌ Failed to add credits:', addCreditsResult.error);
+          return NextResponse.redirect(new URL('/?error=credit_add_failed', request.url));
+        }
+        
+        console.log(`✅ Successfully added ${creditPackage.credits} credits to user account`);
+        
+        // Redirect to create song page (home page)
+        return NextResponse.redirect(new URL('/?payment=success', request.url));
+      } else {
+        console.log(`⚠️ Payment status is not SUCCESS: ${detailData.paymentStatus}`);
+        // Redirect to home page with error
+        return NextResponse.redirect(new URL('/?payment=failed', request.url));
+      }
       
     } catch (detailError: unknown) {
       const axiosError = detailError as { response?: { data?: unknown; status?: number }; message?: string };
@@ -182,7 +256,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Also handle GET requests for testing
+// Also handle GET requests (when iyzico redirects user back)
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const queryParams: Record<string, string> = {};
@@ -194,9 +268,114 @@ export async function GET(request: NextRequest) {
   console.log('🔍 GET request to payment-callback');
   console.log('Query Parameters:', JSON.stringify(queryParams, null, 2));
   
+  // If token is provided in query params, process the payment
+  const token = queryParams.token;
+  if (token) {
+    console.log('🎫 Token found in GET request, processing payment...');
+    
+    try {
+      // Prepare request data
+      const detailRequestData = {
+        token: token
+      };
+      
+      const requestDataString = JSON.stringify(detailRequestData);
+      
+      // Generate authorization header
+      const authorization = generateAuthorizationForPostRequest({
+        apiKey: process.env.IYZICO_API_KEY!,
+        secretKey: process.env.IYZICO_SECRET_KEY!,
+        data: requestDataString,
+        uriPath: '/payment/iyzipos/checkoutform/auth/ecom/detail',
+      });
+      
+      // Make request to iyzico detail endpoint
+      const iyzipayBase = axios.create({
+        baseURL: process.env.IYZICO_BASE_URL,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: authorization,
+        },
+      });
+      
+      const detailResponse = await iyzipayBase.post(
+        'payment/iyzipos/checkoutform/auth/ecom/detail',
+        detailRequestData
+      );
+      
+      const detailData = detailResponse.data as {
+        paymentStatus?: string;
+        itemTransactions?: Array<{ itemId?: string }>;
+        [key: string]: unknown;
+      };
+      
+      // Check if payment was successful
+      if (detailData.paymentStatus === 'SUCCESS') {
+        console.log('✅ Payment status is SUCCESS - processing credit addition...');
+        
+        // Get user session
+        const session = await auth();
+        
+        if (!session?.user?.id) {
+          console.error('❌ No user session found');
+          return NextResponse.redirect(new URL('/?error=no_session', request.url));
+        }
+        
+        // Extract itemId from itemTransactions
+        const itemTransactions = detailData.itemTransactions || [];
+        if (itemTransactions.length === 0) {
+          console.error('❌ No item transactions found');
+          return NextResponse.redirect(new URL('/?error=no_items', request.url));
+        }
+        
+        const itemId = itemTransactions[0]?.itemId;
+        if (!itemId) {
+          console.error('❌ No itemId found in transactions');
+          return NextResponse.redirect(new URL('/?error=no_item_id', request.url));
+        }
+        
+        console.log('📦 Item ID:', itemId);
+        
+        // Get the package to find credit amount
+        const creditPackage = await getCreditPackageById(itemId);
+        if (!creditPackage) {
+          console.error(`❌ Package not found for itemId: ${itemId}`);
+          return NextResponse.redirect(new URL('/?error=package_not_found', request.url));
+        }
+        
+        console.log(`💰 Adding ${creditPackage.credits} credits to user ${session.user.id}`);
+        
+        // Add credits to user account
+        const addCreditsResult = await addPaidCredits(
+          session.user.id,
+          creditPackage.credits,
+          session.user.email || undefined
+        );
+        
+        if (!addCreditsResult.success) {
+          console.error('❌ Failed to add credits:', addCreditsResult.error);
+          return NextResponse.redirect(new URL('/?error=credit_add_failed', request.url));
+        }
+        
+        console.log(`✅ Successfully added ${creditPackage.credits} credits to user account`);
+        
+        // Redirect to create song page (home page)
+        return NextResponse.redirect(new URL('/?payment=success', request.url));
+      } else {
+        console.log(`⚠️ Payment status is not SUCCESS: ${detailData.paymentStatus}`);
+        return NextResponse.redirect(new URL('/?payment=failed', request.url));
+      }
+    } catch (error) {
+      console.error('❌ Error processing GET payment callback:', error);
+      return NextResponse.redirect(new URL('/?error=processing_failed', request.url));
+    }
+  }
+  
+  // No token, just return info
   return NextResponse.json({ 
     message: 'Payment callback endpoint is active',
-    method: 'POST',
+    method: 'POST or GET with token',
     description: 'This endpoint receives callbacks from iyzico after payment processing',
     testQueryParams: queryParams
   });
