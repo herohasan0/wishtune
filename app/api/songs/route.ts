@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getUserSongs } from '@/lib/songs';
+import type { Timestamp } from 'firebase-admin/firestore';
 
 /**
  * GET /api/songs - Get all songs for the authenticated user
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
     
@@ -20,8 +21,8 @@ export async function GET(request: NextRequest) {
     
     // Convert Firestore timestamps to ISO strings for JSON serialization
     const serializedSongs = songs.map((song) => {
-      let createdAt = song.createdAt;
-      let updatedAt = song.updatedAt;
+      let createdAt: string | Timestamp | undefined = song.createdAt;
+      let updatedAt: string | Timestamp | undefined = song.updatedAt;
       
       // Handle Firestore Timestamp objects
       if (createdAt && typeof createdAt.toDate === 'function') {

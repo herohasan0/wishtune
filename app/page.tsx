@@ -183,7 +183,7 @@ export default function Home() {
   // Show sign-up prompt if logged in but can't create (need credits)
   const showSignUpPrompt = session && !canCreate;
   // Show loading skeleton when checking credits for logged-in users
-  const showFormLoading = session?.user && (sessionStatus === 'loading' || creditsLoading);
+  const showFormLoading = session?.user && (sessionStatus === 'authenticated' || creditsLoading);
 
   return (
     <main className="flex min-h-screen flex-col bg-[#FDF7F0] text-[#2F1E14]">

@@ -4,9 +4,12 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 // Initialize Firebase Admin SDK for server-side operations
-let app: App;
-if (getApps().length === 0) {
-  let credential;
+function initializeFirebaseApp(): App {
+  if (getApps().length > 0) {
+    return getApps()[0];
+  }
+
+  let credential: ReturnType<typeof cert> | undefined;
 
   // Option 1: Load from service account JSON file (recommended)
   const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_PATH;
@@ -42,17 +45,16 @@ if (getApps().length === 0) {
       const serviceAccount = JSON.parse(readFileSync(defaultPath, 'utf8'));
       credential = cert(serviceAccount);
       console.log('✅ Firebase Admin initialized from default service account file');
-    } catch (error) {
+    } catch {
       // Option 4: Use application default credentials (for local development with gcloud)
       // Or use project ID only (will use default credentials if available)
       const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 
                        process.env.FIREBASE_ADMIN_PROJECT_ID;
       
       if (projectId) {
-        app = initializeApp({
+        return initializeApp({
           projectId: projectId,
         });
-        console.log('✅ Firebase Admin initialized with project ID (using default credentials)');
       } else {
         throw new Error(
           'Firebase Admin initialization failed. Please provide either:\n' +
@@ -66,13 +68,16 @@ if (getApps().length === 0) {
 
   // Initialize with credential if we have one
   if (credential) {
-    app = initializeApp({
+    return initializeApp({
       credential: credential,
     });
   }
-} else {
-  app = getApps()[0];
+
+  // This should never happen, but TypeScript needs this
+  throw new Error('Firebase Admin initialization failed: no credential or project ID provided');
 }
+
+const app = initializeFirebaseApp();
 
 // Initialize Firestore
 export const db: Firestore = getFirestore(app);

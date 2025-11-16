@@ -1,5 +1,6 @@
 import { db } from './firebase';
 import { FieldValue } from 'firebase-admin/firestore';
+import type { Timestamp } from 'firebase-admin/firestore';
 
 const SONGS_COLLECTION = 'songs';
 
@@ -22,13 +23,19 @@ export interface SongDocument {
   name: string;
   celebrationType?: string;
   style: string;
-  createdAt: FirebaseFirestore.Timestamp;
-  updatedAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
   variations: SongVariation[];
   taskId?: string;
   status: string;
   message?: string;
 }
+
+// Type for creating/updating songs that allows FieldValue for timestamps
+type SongUpdateData = Omit<Partial<SongDocument>, 'createdAt' | 'updatedAt'> & {
+  createdAt?: Timestamp | ReturnType<typeof FieldValue.serverTimestamp>;
+  updatedAt?: Timestamp | ReturnType<typeof FieldValue.serverTimestamp>;
+};
 
 /**
  * Save a song to the database
@@ -54,7 +61,7 @@ export async function saveSong(
     // Check if song already exists
     const existingSong = await songRef.get();
     
-    const songData: Partial<SongDocument> = {
+    const songData: SongUpdateData = {
       id: song.id,
       userId,
       email: email || null,
@@ -103,9 +110,10 @@ export async function getUserSongs(
         .get();
 
       return songsSnapshot.docs.map((doc) => doc.data() as SongDocument);
-    } catch (orderByError: any) {
+    } catch (orderByError: unknown) {
       // If orderBy fails (likely due to missing index), fetch without orderBy and sort in memory
-      if (orderByError?.code === 9 || orderByError?.message?.includes('index')) {
+      const error = orderByError as { code?: number; message?: string };
+      if (error?.code === 9 || error?.message?.includes('index')) {
         console.warn('⚠️ Composite index not found, fetching without orderBy and sorting in memory');
         const songsSnapshot = await db
           .collection(SONGS_COLLECTION)

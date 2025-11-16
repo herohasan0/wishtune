@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Header from '../components/Header';
@@ -35,7 +35,7 @@ interface Song {
   message?: string;
 }
 
-export default function SongsPage() {
+function SongsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
@@ -270,6 +270,22 @@ export default function SongsPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function SongsPage() {
+  return (
+    <Suspense fallback={
+      <main className="relative min-h-screen overflow-hidden bg-[#FFF5EB] px-4 py-6 text-[#3F2A1F] sm:py-10">
+        <BackgroundBlobs />
+        <Header />
+        <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center gap-10">
+          <LoadingState />
+        </div>
+      </main>
+    }>
+      <SongsPageContent />
+    </Suspense>
   );
 }
 
