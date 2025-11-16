@@ -37,11 +37,8 @@ export default function BuyCreditsPage() {
   
   // Form state
   const [formData, setFormData] = useState({
-    name: '',
-    surname: '',
+    fullName: '',
     email: '',
-    phone: '',
-    identityNumber: '',
     address: '',
     city: '',
     country: '',
@@ -101,6 +98,11 @@ export default function BuyCreditsPage() {
 
     setSubmitting(true);
     
+    // Split full name into name and surname
+    const nameParts = formData.fullName.trim().split(/\s+/);
+    const name = nameParts[0] || '';
+    const surname = nameParts.slice(1).join(' ') || name; // Use first name as surname if only one word
+    
     const data = {
       locale: "en",
       price: selectedPlan.price,
@@ -109,24 +111,24 @@ export default function BuyCreditsPage() {
       callbackUrl: `${window.location.origin}/api/suno-callback`,
       buyer: {
         id: session?.user?.email?.replace(/[^a-zA-Z0-9]/g, '') || `BY${Date.now()}`,
-        name: formData.name,
-        surname: formData.surname,
-        identityNumber: formData.identityNumber || "11111111111",
+        name: name,
+        surname: surname,
+        identityNumber: "11111111111",
         email: formData.email,
-        gsmNumber: formData.phone,
+        gsmNumber: "+15551234567",
         registrationAddress: formData.address,
         city: formData.city,
         country: formData.country,
       },
       shippingAddress: {
         address: formData.address,
-        contactName: formData.shippingContactName || `${formData.name} ${formData.surname}`,
+        contactName: formData.shippingContactName || formData.fullName,
         city: formData.city,
         country: formData.country
       },
       billingAddress: {
         address: formData.address,
-        contactName: formData.billingContactName || `${formData.name} ${formData.surname}`,
+        contactName: formData.billingContactName || formData.fullName,
         city: formData.city,
         country: formData.country
       },
@@ -159,11 +161,8 @@ export default function BuyCreditsPage() {
     setFormResponse(null);
     // Reset form data
     setFormData({
-      name: '',
-      surname: '',
+      fullName: '',
       email: session?.user?.email || '',
-      phone: '',
-      identityNumber: '',
       address: '',
       city: '',
       country: '',
@@ -411,33 +410,18 @@ export default function BuyCreditsPage() {
               </div>
 
               <form onSubmit={handleFormSubmit} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-[#2F1E14] mb-1">
-                      First Name *
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="surname" className="block text-sm font-medium text-[#2F1E14] mb-1">
-                      Last Name *
-                    </label>
-                    <input
-                      type="text"
-                      id="surname"
-                      required
-                      value={formData.surname}
-                      onChange={(e) => setFormData(prev => ({ ...prev, surname: e.target.value }))}
-                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                    />
-                  </div>
+                <div>
+                  <label htmlFor="fullName" className="block text-sm font-medium text-[#2F1E14] mb-1">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="fullName"
+                    required
+                    value={formData.fullName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
+                    className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                  />
                 </div>
 
                 <div>
@@ -452,35 +436,6 @@ export default function BuyCreditsPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
                   />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-[#2F1E14] mb-1">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      required
-                      value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="+1234567890"
-                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="identityNumber" className="block text-sm font-medium text-[#2F1E14] mb-1">
-                      Identity Number
-                    </label>
-                    <input
-                      type="text"
-                      id="identityNumber"
-                      value={formData.identityNumber}
-                      onChange={(e) => setFormData(prev => ({ ...prev, identityNumber: e.target.value }))}
-                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                    />
-                  </div>
                 </div>
 
                 <div>
