@@ -5,14 +5,14 @@ export async function POST(request) {
   const data = await request.json();
 
   const authorization = generateAuthorizationForPostRequest({
-    apiKey: process.env.NEXT_PUBLIC_IYZICO_API_KEY,
-    secretKey: process.env.NEXT_PUBLIC_IYZICO_SECRET_KEY,
+    apiKey: process.env.IYZICO_API_KEY,
+    secretKey: process.env.IYZICO_SECRET_KEY,
     data: JSON.stringify(data),
     uriPath: "/payment/iyzipos/checkoutform/initialize/auth/ecom",
   });
 
   const iyzipayBase = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_IYZICO_BASE_URL,
+    baseURL: process.env.IYZICO_BASE_URL,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",

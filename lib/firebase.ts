@@ -48,8 +48,7 @@ function initializeFirebaseApp(): App {
     } catch {
       // Option 4: Use application default credentials (for local development with gcloud)
       // Or use project ID only (will use default credentials if available)
-      const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 
-                       process.env.FIREBASE_ADMIN_PROJECT_ID;
+      const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
       
       if (projectId) {
         return initializeApp({
