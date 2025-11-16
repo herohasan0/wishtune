@@ -109,7 +109,7 @@ export default function BuyCreditsPage() {
       price: selectedPlan.price,
       paidPrice: selectedPlan.price,
       currency: "USD",
-      callbackUrl: `${window.location.origin}/api/suno-callback`,
+      callbackUrl: `${window.location.origin}/api/payment-callback`,
       buyer: {
         id: session?.user?.email?.replace(/[^a-zA-Z0-9]/g, '') || `BY${Date.now()}`,
         name: name,
