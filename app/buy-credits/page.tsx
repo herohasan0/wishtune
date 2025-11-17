@@ -387,22 +387,18 @@ export default function BuyCreditsPage() {
       {showForm && selectedPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border border-[#F3E4D6] bg-white shadow-lg">
-            <div className="sticky top-0 bg-white border-b border-[#F3E4D6] px-6 py-4 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-[#2F1E14]">Complete Your Purchase</h2>
-              <button
-                onClick={handleCloseForm}
-                className="text-[#8F6C54] hover:text-[#2F1E14] transition-colors"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </div>
-            
             <div className="p-6">
               {/* Selected Plan Info */}
-              <div className="mb-6 rounded-lg border border-[#F3E4D6] bg-[#FFF5EB] p-4">
+              <div className="mb-6 rounded-lg border border-[#F3E4D6] bg-[#FFF5EB] p-4 relative">
+                <button
+                  onClick={handleCloseForm}
+                  className="absolute top-4 right-4 text-[#8F6C54] hover:text-[#2F1E14] transition-colors"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
                 <h3 className="text-lg font-semibold text-[#2F1E14]">{selectedPlan.name}</h3>
                 <div className="mt-2 flex items-baseline gap-2">
                   <span className="text-2xl font-bold text-[#F18A24]">${selectedPlan.price.toFixed(2)}</span>
@@ -495,7 +491,7 @@ export default function BuyCreditsPage() {
                     disabled={submitting}
                     className="flex-1 rounded-lg bg-[#F18A24] px-4 py-3 text-sm font-semibold text-white hover:bg-[#E07212] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {submitting ? 'Processing...' : 'Continue to Payment'}
+                    {submitting ? 'Processing...' : 'Continue'}
                   </button>
                 </div>
               </form>
