@@ -68,8 +68,7 @@ export default function Home() {
         fetchCredits();
         // Remove query parameter from URL
         window.history.replaceState({}, '', window.location.pathname);
-        // Hide message after 5 seconds
-        setTimeout(() => setShowPaymentSuccess(false), 5000);
+        // Message will stay visible until user closes it manually
       }
     }
   }, [session, fetchCredits]);
