@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import Link from 'next/link';
 import Header from '../components/Header';
 import BackgroundBlobs from '../components/BackgroundBlobs';
@@ -39,11 +41,41 @@ interface Song {
 function SongsPageContent() {
   const router = useRouter();
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const [song, setSong] = useState<Song | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [playingVariationId, setPlayingVariationId] = useState<string | null>(null);
   const [creditDeducted, setCreditDeducted] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const isProcessingRef = useRef(false);
+
+  // Save song mutation
+  const saveSongMutation = useMutation({
+    mutationFn: async (songData: Song) => {
+      const response = await axios.post('/api/songs/save', songData);
+      return response.data;
+    },
+  });
+
+  // Deduct credit mutation
+  const deductCreditMutation = useMutation({
+    mutationFn: async () => {
+      const response = await axios.post('/api/deduct-credit', {});
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate credits query to refetch updated credits
+      queryClient.invalidateQueries({ queryKey: ['credits'] });
+    },
+  });
+
+  // Save song count mutation
+  const saveSongCountMutation = useMutation({
+    mutationFn: async (count: number) => {
+      const response = await axios.post('/api/save-song-count', { count });
+      return response.data;
+    },
+  });
 
   useEffect(() => {
     // Mark as mounted to avoid hydration mismatch
@@ -125,7 +157,7 @@ function SongsPageContent() {
 
   // Save song to database and deduct credit when it becomes complete
   useEffect(() => {
-    if (!song || song.status !== 'complete' || creditDeducted) {
+    if (!song || song.status !== 'complete' || creditDeducted || isProcessingRef.current) {
       return;
     }
 
@@ -135,58 +167,36 @@ function SongsPageContent() {
     );
 
     if (allVariationsReady) {
+      // Set processing flag immediately to prevent duplicate calls
+      isProcessingRef.current = true;
+      setCreditDeducted(true);
+
       const saveSongAndDeductCredit = async () => {
         try {
           // Save song to database and deduct credit (only if logged in)
           if (session?.user) {
-            const saveResponse = await fetch('/api/songs/save', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(song),
-            });
-
-            if (saveResponse.ok) {
-              console.log('✅ Song saved to database');
+            // Save song first
+            await saveSongMutation.mutateAsync(song);
+            console.log('✅ Song saved to database');
+            
+            // Deduct 1 credit for the song (regardless of variations)
+            await deductCreditMutation.mutateAsync();
+            console.log('✅ 1 credit deducted successfully');
+            
+            // Update localStorage count after successful credit deduction
+            if (typeof window !== 'undefined') {
+              const currentCount = parseInt(localStorage.getItem('wishtune_songs_created') || '0', 10);
+              const newCount = currentCount + 1;
+              localStorage.setItem('wishtune_songs_created', newCount.toString());
               
-              // Deduct 1 credit for the song (regardless of variations)
-              const deductResponse = await fetch('/api/deduct-credit', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({}),
-              });
-
-              if (deductResponse.ok) {
-                console.log('✅ 1 credit deducted successfully');
-                setCreditDeducted(true);
-                
-                // Update localStorage count after successful credit deduction
-                if (typeof window !== 'undefined') {
-                  const currentCount = parseInt(localStorage.getItem('wishtune_songs_created') || '0', 10);
-                  const newCount = currentCount + 1;
-                  localStorage.setItem('wishtune_songs_created', newCount.toString());
-                  
-                  // If user has reached 2 songs total, save count to database
-                  if (newCount >= 2) {
-                    try {
-                      await fetch('/api/save-song-count', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ count: newCount }),
-                      });
-                    } catch (error) {
-                      console.error('Error saving song count to database:', error);
-                    }
-                  }
+              // If user has reached 2 songs total, save count to database
+              if (newCount >= 2) {
+                try {
+                  await saveSongCountMutation.mutateAsync(newCount);
+                } catch (error) {
+                  console.error('Error saving song count to database:', error);
                 }
-              } else {
-                console.error('❌ Failed to deduct credit:', await deductResponse.text());
               }
-            } else {
-              console.error('❌ Failed to save song:', await saveResponse.text());
             }
           } else {
             // For anonymous users, update localStorage count (1 song = 1 count, regardless of variations)
@@ -194,11 +204,13 @@ function SongsPageContent() {
               const currentCount = parseInt(localStorage.getItem('wishtune_songs_created') || '0', 10);
               const newCount = currentCount + 1;
               localStorage.setItem('wishtune_songs_created', newCount.toString());
-              setCreditDeducted(true);
             }
           }
         } catch (error) {
           console.error('❌ Error saving song or deducting credit:', error);
+          // Reset flags on error so user can retry if needed
+          isProcessingRef.current = false;
+          setCreditDeducted(false);
         }
       };
 

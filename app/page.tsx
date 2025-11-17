@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
@@ -26,29 +27,42 @@ interface CreditInfo {
 export default function Home() {
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [celebrationType, setCelebrationType] = useState('birthday');
   const [selectedStyle, setSelectedStyle] = useState('pop');
-  const [isLoading, setIsLoading] = useState(false);
-  const [credits, setCredits] = useState<CreditInfo | null>(null);
-  const [creditsLoading, setCreditsLoading] = useState(true);
   const [nameError, setNameError] = useState(false);
   const [songsCreatedCount, setSongsCreatedCount] = useState<number>(0);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
 
-  const fetchCredits = useCallback(async () => {
-    try {
-      const response = await fetch('/api/credits');
-      if (response.ok) {
-        const data = await response.json();
-        setCredits(data.credits);
-      }
-    } catch (error) {
-      console.error('Error fetching credits:', error);
-    } finally {
-      setCreditsLoading(false);
-    }
-  }, []);
+  // Fetch credits using React Query
+  const {
+    data: creditsData,
+    isLoading: creditsLoading,
+    refetch: refetchCredits,
+  } = useQuery<{ credits: CreditInfo }>({
+    queryKey: ['credits'],
+    queryFn: async () => {
+      const response = await axios.get<{ credits: CreditInfo }>('/api/credits');
+      return response.data;
+    },
+    enabled: !!session?.user,
+    retry: 1,
+  });
+
+  const credits = creditsData?.credits ?? null;
+
+  // Merge anonymous song mutation
+  const mergeAnonymousSongMutation = useMutation({
+    mutationFn: async () => {
+      const response = await axios.post('/api/merge-anonymous-song');
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate credits query to refetch after merge
+      queryClient.invalidateQueries({ queryKey: ['credits'] });
+    },
+  });
 
   // Check localStorage for songs created count
   useEffect(() => {
@@ -64,14 +78,14 @@ export default function Home() {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('payment') === 'success') {
         setShowPaymentSuccess(true);
-        // Refresh credits
-        fetchCredits();
+        // Refresh credits using React Query
+        refetchCredits();
         // Remove query parameter from URL
         window.history.replaceState({}, '', window.location.pathname);
         // Message will stay visible until user closes it manually
       }
     }
-  }, [session, fetchCredits]);
+  }, [session, refetchCredits]);
 
   // Load credits from API and merge anonymous song if needed
   useEffect(() => {
@@ -79,27 +93,14 @@ export default function Home() {
     
     if (session?.user) {
       // Merge anonymous song if user had one before login
-      const mergeAnonymousSong = async () => {
-        if (typeof window !== 'undefined') {
-          const count = localStorage.getItem('wishtune_songs_created');
-          if (count === '1') {
-            try {
-              await fetch('/api/merge-anonymous-song', { method: 'POST' });
-              // Keep localStorage as 1, user can create one more
-            } catch (error) {
-              console.error('Error merging anonymous song:', error);
-            }
-          }
+      if (typeof window !== 'undefined') {
+        const count = localStorage.getItem('wishtune_songs_created');
+        if (count === '1' && !mergeAnonymousSongMutation.isPending && !mergeAnonymousSongMutation.isSuccess) {
+          mergeAnonymousSongMutation.mutate();
         }
-      };
-      
-      mergeAnonymousSong().then(() => {
-        fetchCredits();
-      });
-    } else {
-      setCreditsLoading(false);
+      }
     }
-  }, [session, sessionStatus, fetchCredits]);
+  }, [session, sessionStatus, mergeAnonymousSongMutation]);
 
   // Determine if user can create a song
   const canCreateSong = () => {
@@ -141,7 +142,41 @@ export default function Home() {
     { id: 'folk', label: 'Folk', description: 'Acoustic & Heartfelt', icon: '🎸' },
   ];
 
-  const handleCreate = async () => {
+  // Create song mutation
+  const createSongMutation = useMutation({
+    mutationFn: async (data: { name: string; celebrationType: string; musicStyle: string }) => {
+      const response = await axios.post('/api/create-song', {
+        name: data.name.trim(),
+        celebrationType: data.celebrationType,
+        musicStyle: data.musicStyle,
+      });
+      return response.data;
+    },
+    onSuccess: (newSong) => {
+      // Credits and localStorage count will be updated when song is successfully created (status = 'complete')
+      // This happens in the songs page when the song becomes complete
+      
+      // Store song data in sessionStorage instead of URL to keep URL clean
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('wishtune_new_song', JSON.stringify(newSong));
+        // Use window.location.href for full page navigation to ensure sessionStorage is available
+        window.location.href = '/songs';
+      } else {
+        // Fallback to router.push if window is not available (shouldn't happen in browser)
+        router.push('/songs');
+      }
+    },
+    onError: (error) => {
+      console.error('Error creating song:', error);
+      if (axios.isAxiosError(error) && error.response?.data?.error) {
+        alert(error.response.data.error);
+      } else {
+        alert(error instanceof Error ? error.message : 'Failed to create song. Please try again.');
+      }
+    },
+  });
+
+  const handleCreate = () => {
     // Check if name is missing
     if (!name.trim()) {
       setNameError(true);
@@ -156,41 +191,11 @@ export default function Home() {
     setNameError(false);
     
     if (celebrationType && selectedStyle) {
-      setIsLoading(true);
-      
-      try {
-        // Call Suno AI API route
-        const response = await axios.post('/api/create-song', {
-          name: name.trim(),
-          celebrationType: celebrationType,
-          musicStyle: selectedStyle,
-        });
-
-        const newSong = response.data;
-        
-        // Credits and localStorage count will be updated when song is successfully created (status = 'complete')
-        // This happens in the songs page when the song becomes complete
-        
-        // Store song data in sessionStorage instead of URL to keep URL clean
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('wishtune_new_song', JSON.stringify(newSong));
-          // Use window.location.href for full page navigation to ensure sessionStorage is available
-          window.location.href = '/songs';
-          return; // Exit early since we're navigating away
-        }
-        
-        // Fallback to router.push if window is not available (shouldn't happen in browser)
-        router.push('/songs');
-      } catch (error) {
-        console.error('Error creating song:', error);
-        if (axios.isAxiosError(error) && error.response?.data?.error) {
-          alert(error.response.data.error);
-        } else {
-          alert(error instanceof Error ? error.message : 'Failed to create song. Please try again.');
-        }
-      } finally {
-        setIsLoading(false);
-      }
+      createSongMutation.mutate({
+        name: name.trim(),
+        celebrationType: celebrationType,
+        musicStyle: selectedStyle,
+      });
     }
   };
 
@@ -319,7 +324,7 @@ export default function Home() {
           </div>
 
           {showForm && !showFormLoading && (
-            <CreateButton isLoading={isLoading} onClick={handleCreate} />
+            <CreateButton isLoading={createSongMutation.isPending} onClick={handleCreate} />
           )}
 
           <Footer />

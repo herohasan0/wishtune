@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import Link from 'next/link';
 
 interface CreditInfo {
@@ -13,30 +14,22 @@ interface CreditInfo {
 
 export default function CreditStatus() {
   const { data: session } = useSession();
-  const [credits, setCredits] = useState<CreditInfo | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (session?.user) {
-      fetchCredits();
-    } else {
-      setLoading(false);
-    }
-  }, [session]);
+  // Use React Query to fetch credits (shares cache with other components)
+  const {
+    data: creditsData,
+    isLoading: loading,
+  } = useQuery<{ credits: CreditInfo }>({
+    queryKey: ['credits'],
+    queryFn: async () => {
+      const response = await axios.get<{ credits: CreditInfo }>('/api/credits');
+      return response.data;
+    },
+    enabled: !!session?.user,
+    retry: 1,
+  });
 
-  const fetchCredits = async () => {
-    try {
-      const response = await fetch('/api/credits');
-      if (response.ok) {
-        const data = await response.json();
-        setCredits(data.credits);
-      }
-    } catch (error) {
-      console.error('Error fetching credits:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const credits = creditsData?.credits ?? null;
 
   // Show loading skeleton to prevent layout shift
   if (!session || loading) {

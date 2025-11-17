@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '../components/Header';
@@ -45,80 +47,69 @@ export default function AccountPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('songs');
-  const [credits, setCredits] = useState<CreditInfo | null>(null);
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [songsLoading, setSongsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [songsError, setSongsError] = useState<string | null>(null);
   const [playingVariationId, setPlayingVariationId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Redirect if not authenticated
   useEffect(() => {
     if (status === 'loading') return;
     
     if (!session?.user) {
       router.push('/');
-      return;
     }
-
-    fetchCredits();
   }, [session, status, router]);
 
-  const fetchCredits = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('/api/credits');
-      
-      if (response.ok) {
-        const data = await response.json();
-        setCredits(data.credits);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Failed to fetch credits');
-      }
-    } catch (err) {
-      console.error('Error fetching credits:', err);
-      setError('Failed to load credit information');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Fetch credits using React Query
+  const {
+    data: creditsData,
+    isLoading: creditsLoading,
+    error: creditsError,
+    refetch: refetchCredits,
+  } = useQuery<{ credits: CreditInfo }>({
+    queryKey: ['credits'],
+    queryFn: async () => {
+      const response = await axios.get<{ credits: CreditInfo }>('/api/credits');
+      return response.data;
+    },
+    enabled: !!session?.user,
+    retry: 1,
+  });
 
-  const fetchSongs = async () => {
-    try {
-      setSongsLoading(true);
-      setSongsError(null);
-      const response = await fetch('/api/songs');
-      
-      if (response.ok) {
-        const data = await response.json();
-        setSongs(data.songs || []);
-      } else {
-        const errorData = await response.json();
-        console.error('Error fetching songs:', errorData);
-        const errorMessage = errorData.details 
-          ? `${errorData.error}: ${errorData.details}`
-          : errorData.error || 'Failed to fetch songs';
-        setSongsError(errorMessage);
-      }
-    } catch (err) {
-      console.error('Error fetching songs:', err);
-      setSongsError(err instanceof Error ? err.message : 'Failed to load songs');
-    } finally {
-      setSongsLoading(false);
-    }
-  };
+  const credits = creditsData?.credits ?? null;
+  const creditsErrorMsg = creditsError
+    ? axios.isAxiosError(creditsError) && creditsError.response?.data?.error
+      ? creditsError.response.data.error
+      : 'Failed to load credit information'
+    : null;
 
-  useEffect(() => {
-    if (activeTab === 'songs' && session?.user && songs.length === 0 && !songsLoading) {
-      fetchSongs();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, session]);
+  // Fetch songs using React Query
+  const {
+    data: songsData,
+    isLoading: songsLoading,
+    error: songsError,
+    refetch: refetchSongs,
+  } = useQuery<{ songs: Song[] }>({
+    queryKey: ['songs'],
+    queryFn: async () => {
+      const response = await axios.get<{ songs: Song[] }>('/api/songs');
+      return response.data;
+    },
+    enabled: !!session?.user && activeTab === 'songs',
+    retry: 1,
+  });
 
-  if (status === 'loading' || loading) {
+  const songs = songsData?.songs ?? [];
+  const songsErrorMsg = songsError
+    ? axios.isAxiosError(songsError) && songsError.response?.data
+      ? songsError.response.data.details
+        ? `${songsError.response.data.error}: ${songsError.response.data.details}`
+        : songsError.response.data.error || 'Failed to fetch songs'
+      : songsError instanceof Error
+      ? songsError.message
+      : 'Failed to load songs'
+    : null;
+
+  if (status === 'loading' || creditsLoading) {
     return (
       <main className="relative min-h-screen overflow-hidden bg-[#FFF5EB] px-4 py-6 text-[#3F2A1F] sm:py-10">
         <BackgroundBlobs />
@@ -222,15 +213,15 @@ export default function AccountPage() {
               <div className="text-center py-8 text-[#8F6C54]">
                 Loading your songs...
               </div>
-            ) : songsError ? (
+            ) : songsErrorMsg ? (
               <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-red-700">
                 <p className="font-medium">Error loading songs</p>
-                <p className="text-sm mt-1 font-mono break-all">{songsError}</p>
+                <p className="text-sm mt-1 font-mono break-all">{songsErrorMsg}</p>
                 <p className="text-xs mt-2 text-red-600">
                   Check the browser console for more details. If this persists, the Firestore index may need to be created.
                 </p>
                 <button
-                  onClick={fetchSongs}
+                  onClick={() => refetchSongs()}
                   className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
                 >
                   Try Again
@@ -458,12 +449,12 @@ export default function AccountPage() {
         <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-6 shadow-sm">
           <h2 className="mb-6 text-2xl font-bold text-[#2F1E14]">Your Credits</h2>
           
-          {error ? (
+          {creditsErrorMsg ? (
             <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-red-700">
               <p className="font-medium">Error loading credits</p>
-              <p className="text-sm mt-1">{error}</p>
+              <p className="text-sm mt-1">{creditsErrorMsg}</p>
               <button
-                onClick={fetchCredits}
+                onClick={() => refetchCredits()}
                 className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
               >
                 Try Again

@@ -10,6 +10,7 @@
     "live": "rm -rf .next && next build && next start -p 3000"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.10",
     "axios": "^1.13.2",
     "crypto-js": "^4.2.0",
     "firebase": "^12.6.0",

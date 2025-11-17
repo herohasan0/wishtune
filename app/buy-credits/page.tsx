@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
+import Link from 'next/link';
 import Header from '../components/Header';
 import BackgroundBlobs from '../components/BackgroundBlobs';
 import Payment from '../components/Payment';
@@ -28,13 +29,9 @@ interface CreditPackage {
 export default function BuyCreditsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [credits, setCredits] = useState<CreditInfo | null>(null);
-  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<CreditPackage | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formResponse, setFormResponse] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -47,44 +44,48 @@ export default function BuyCreditsPage() {
     billingContactName: '',
   });
 
+  // Redirect if not authenticated
   useEffect(() => {
     if (status === 'loading') return;
     
     if (!session?.user) {
       router.push('/');
-      return;
     }
-
-    fetchCredits();
-    fetchPackages();
   }, [session, status, router]);
 
-  const fetchCredits = async () => {
-    try {
-      const response = await axios.get('/api/credits');
-      setCredits(response.data.credits);
-    } catch (err) {
-      console.error('Error fetching credits:', err);
-    }
-  };
+  // Fetch credits using React Query
+  const {
+    data: creditsData,
+  } = useQuery<{ credits: CreditInfo }>({
+    queryKey: ['credits'],
+    queryFn: async () => {
+      const response = await axios.get<{ credits: CreditInfo }>('/api/credits');
+      return response.data;
+    },
+    enabled: !!session?.user,
+    retry: 1,
+  });
 
-  const fetchPackages = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('/api/packages');
+  const credits = creditsData?.credits ?? null;
+
+  // Fetch packages using React Query
+  const {
+    data: packagesData,
+    isLoading: packagesLoading,
+  } = useQuery<{ packages: CreditPackage[] }>({
+    queryKey: ['packages'],
+    queryFn: async () => {
+      const response = await axios.get<{ packages: CreditPackage[] }>('/api/packages');
       console.log('📦 Packages fetched:', response.data);
-      const packages = response.data.packages || [];
-      console.log(`✅ Setting ${packages.length} packages`);
-      setCreditPackages(packages);
-    } catch (err) {
-      console.error('Error fetching packages:', err);
-      setCreditPackages([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return response.data;
+    },
+    enabled: !!session?.user,
+    retry: 1,
+  });
 
-  const handlePurchase = async (pkg: CreditPackage) => {
+  const creditPackages = packagesData?.packages ?? [];
+
+  const handlePurchase = (pkg: CreditPackage) => {
     setSelectedPlan(pkg);
     setShowForm(true);
     // Pre-fill email from session if available
@@ -93,11 +94,35 @@ export default function BuyCreditsPage() {
     }
   };
 
+  // Initialize payment form mutation
+  const initializeFormMutation = useMutation({
+    mutationFn: async (data: {
+      locale: string;
+      price: number;
+      paidPrice: number;
+      currency: string;
+      callbackUrl: string;
+      buyer: any;
+      shippingAddress: any;
+      billingAddress: any;
+      basketItems: any[];
+    }) => {
+      const response = await axios.post<{ checkoutFormContent: string }>("/api/initialize-form", data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setFormResponse(data.checkoutFormContent);
+      setShowForm(false);
+    },
+    onError: (error) => {
+      console.error("Error initializing form:", error);
+      alert("Failed to initialize payment. Please try again.");
+    },
+  });
+
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedPlan) return;
-
-    setSubmitting(true);
     
     // Split full name into name and surname
     const nameParts = formData.fullName.trim().split(/\s+/);
@@ -144,16 +169,7 @@ export default function BuyCreditsPage() {
       ]
     };
 
-    try {
-      const response = await axios.post("/api/initialize-form", data);
-      setFormResponse(response.data?.checkoutFormContent);
-      setShowForm(false);
-    } catch (error) {
-      console.error("Error initializing form:", error);
-      alert("Failed to initialize payment. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+    initializeFormMutation.mutate(data);
   };
 
   const handleCloseForm = () => {
@@ -172,7 +188,7 @@ export default function BuyCreditsPage() {
     });
   };
 
-  if (status === 'loading' || loading) {
+  if (status === 'loading' || packagesLoading) {
     return (
       <main className="relative min-h-screen overflow-hidden bg-[#FFF5EB] px-4 py-6 text-[#3F2A1F] sm:py-10">
         <BackgroundBlobs />
@@ -488,10 +504,10 @@ export default function BuyCreditsPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={initializeFormMutation.isPending}
                     className="flex-1 rounded-lg bg-[#F18A24] px-4 py-3 text-sm font-semibold text-white hover:bg-[#E07212] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {submitting ? 'Processing...' : 'Continue'}
+                    {initializeFormMutation.isPending ? 'Processing...' : 'Continue'}
                   </button>
                 </div>
               </form>

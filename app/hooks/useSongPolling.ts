@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 
 interface SongVariation {
   id: string;
@@ -46,8 +47,8 @@ export function useSongPolling({ song, onSongUpdate }: UseSongPollingProps) {
       console.log(`🔍 Polling attempt ${pollCount}/${maxPolls}...`);
 
       try {
-        const response = await fetch(`/api/check-song-status?taskId=${song.taskId}`);
-        const data = await response.json();
+        const response = await axios.get(`/api/check-song-status?taskId=${song.taskId}`);
+        const data = response.data;
 
         console.log('📥 Poll response:', data);
 
