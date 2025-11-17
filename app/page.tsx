@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import axios from 'axios';
@@ -34,6 +34,21 @@ export default function Home() {
   const [creditsLoading, setCreditsLoading] = useState(true);
   const [nameError, setNameError] = useState(false);
   const [songsCreatedCount, setSongsCreatedCount] = useState<number>(0);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+
+  const fetchCredits = useCallback(async () => {
+    try {
+      const response = await fetch('/api/credits');
+      if (response.ok) {
+        const data = await response.json();
+        setCredits(data.credits);
+      }
+    } catch (error) {
+      console.error('Error fetching credits:', error);
+    } finally {
+      setCreditsLoading(false);
+    }
+  }, []);
 
   // Check localStorage for songs created count
   useEffect(() => {
@@ -42,6 +57,22 @@ export default function Home() {
       setSongsCreatedCount(count ? parseInt(count, 10) : 0);
     }
   }, []);
+
+  // Check for payment success in URL and refresh credits
+  useEffect(() => {
+    if (typeof window !== 'undefined' && session?.user) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('payment') === 'success') {
+        setShowPaymentSuccess(true);
+        // Refresh credits
+        fetchCredits();
+        // Remove query parameter from URL
+        window.history.replaceState({}, '', window.location.pathname);
+        // Hide message after 5 seconds
+        setTimeout(() => setShowPaymentSuccess(false), 5000);
+      }
+    }
+  }, [session, fetchCredits]);
 
   // Load credits from API and merge anonymous song if needed
   useEffect(() => {
@@ -69,21 +100,7 @@ export default function Home() {
     } else {
       setCreditsLoading(false);
     }
-  }, [session, sessionStatus]);
-
-  const fetchCredits = async () => {
-    try {
-      const response = await fetch('/api/credits');
-      if (response.ok) {
-        const data = await response.json();
-        setCredits(data.credits);
-      }
-    } catch (error) {
-      console.error('Error fetching credits:', error);
-    } finally {
-      setCreditsLoading(false);
-    }
-  };
+  }, [session, sessionStatus, fetchCredits]);
 
   // Determine if user can create a song
   const canCreateSong = () => {
@@ -182,8 +199,6 @@ export default function Home() {
   const showForm = canCreate;
   // Show sign-in prompt if count is 1 and user is not logged in
   const showSignInPrompt = !session && songsCreatedCount === 1;
-  // Show sign-up prompt if logged in but can't create (need credits)
-  const showSignUpPrompt = session && !canCreate;
   // Show loading skeleton when checking credits for logged-in users
   const showFormLoading = session?.user && creditsLoading;
 
@@ -195,6 +210,32 @@ export default function Home() {
         <HeroSection />
 
         <div className="mx-auto mt-8 w-full max-w-3xl">
+          {/* Payment Success Message */}
+          {showPaymentSuccess && (
+            <div className="mb-6 rounded-lg border-2 border-green-500 bg-green-50 p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-800">Payment Successful!</h3>
+                  <p className="text-sm text-green-700">Your credits have been added to your account. You can now create songs!</p>
+                </div>
+                <button
+                  onClick={() => setShowPaymentSuccess(false)}
+                  className="text-green-600 hover:text-green-800"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+          
           {session && <CreditStatus />}
           
           <div className="rounded-[36px] border border-[#F3E4D6] bg-white/95 p-6 shadow-[0_25px_80px_rgba(207,173,138,0.25)] sm:p-10 md:p-12">
