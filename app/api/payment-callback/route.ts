@@ -177,14 +177,14 @@ export async function POST(request: NextRequest) {
         if (itemTransactions.length === 0) {
           console.error('❌ No item transactions found');
           const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=no_items`);
+          return NextResponse.redirect(`${origin}/?error=no_items`, { status: 303 });
         }
         
         const itemId = itemTransactions[0]?.itemId;
         if (!itemId) {
           console.error('❌ No itemId found in transactions');
           const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=no_item_id`);
+          return NextResponse.redirect(`${origin}/?error=no_item_id`, { status: 303 });
         }
         
         console.log('📦 Item ID:', itemId);
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
         if (!creditPackage) {
           console.error(`❌ Package not found for itemId: ${itemId}`);
           const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=package_not_found`);
+          return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
         }
         
         console.log(`💰 Adding ${creditPackage.credits} credits to user ${session.user.id}`);
@@ -209,19 +209,19 @@ export async function POST(request: NextRequest) {
         if (!addCreditsResult.success) {
           console.error('❌ Failed to add credits:', addCreditsResult.error);
           const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=credit_add_failed`);
+          return NextResponse.redirect(`${origin}/?error=credit_add_failed`, { status: 303 });
         }
         
         console.log(`✅ Successfully added ${creditPackage.credits} credits to user account`);
         
-        // Redirect to create song page (home page)
+        // Redirect to create song page (home page) with 303 status to force GET method
         const origin = request.nextUrl.origin;
-        return NextResponse.redirect(`${origin}/?payment=success`);
+        return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
       } else {
         console.log(`⚠️ Payment status is not SUCCESS: ${detailData.paymentStatus}`);
         // Redirect to home page with error
         const origin = request.nextUrl.origin;
-        return NextResponse.redirect(`${origin}/?payment=failed`);
+        return NextResponse.redirect(`${origin}/?payment=failed`, { status: 303 });
       }
       
     } catch (detailError: unknown) {
@@ -326,7 +326,7 @@ export async function GET(request: NextRequest) {
         if (!session?.user?.id) {
           console.error('❌ No user session found');
           const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=no_session`);
+          return NextResponse.redirect(`${origin}/?error=no_session`, { status: 303 });
         }
         
         // Extract itemId from itemTransactions
@@ -334,14 +334,14 @@ export async function GET(request: NextRequest) {
         if (itemTransactions.length === 0) {
           console.error('❌ No item transactions found');
           const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=no_items`);
+          return NextResponse.redirect(`${origin}/?error=no_items`, { status: 303 });
         }
         
         const itemId = itemTransactions[0]?.itemId;
         if (!itemId) {
           console.error('❌ No itemId found in transactions');
           const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=no_item_id`);
+          return NextResponse.redirect(`${origin}/?error=no_item_id`, { status: 303 });
         }
         
         console.log('📦 Item ID:', itemId);
@@ -351,7 +351,7 @@ export async function GET(request: NextRequest) {
         if (!creditPackage) {
           console.error(`❌ Package not found for itemId: ${itemId}`);
           const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=package_not_found`);
+          return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
         }
         
         console.log(`💰 Adding ${creditPackage.credits} credits to user ${session.user.id}`);
@@ -366,23 +366,23 @@ export async function GET(request: NextRequest) {
         if (!addCreditsResult.success) {
           console.error('❌ Failed to add credits:', addCreditsResult.error);
           const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=credit_add_failed`);
+          return NextResponse.redirect(`${origin}/?error=credit_add_failed`, { status: 303 });
         }
         
         console.log(`✅ Successfully added ${creditPackage.credits} credits to user account`);
         
-        // Redirect to create song page (home page)
+        // Redirect to create song page (home page) with 303 status to force GET method
         const origin = request.nextUrl.origin;
-        return NextResponse.redirect(`${origin}/?payment=success`);
+        return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
       } else {
         console.log(`⚠️ Payment status is not SUCCESS: ${detailData.paymentStatus}`);
         const origin = request.nextUrl.origin;
-        return NextResponse.redirect(`${origin}/?payment=failed`);
+        return NextResponse.redirect(`${origin}/?payment=failed`, { status: 303 });
       }
     } catch (error) {
       console.error('❌ Error processing GET payment callback:', error);
       const origin = request.nextUrl.origin;
-      return NextResponse.redirect(`${origin}/?error=processing_failed`);
+      return NextResponse.redirect(`${origin}/?error=processing_failed`, { status: 303 });
     }
   }
   
