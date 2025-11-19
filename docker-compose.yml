@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  wishtune:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wishtune-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # NextAuth Configuration
+      - AUTH_SECRET=${AUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      
+      # Google OAuth
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      
+      # Firebase Admin SDK (Option 1: Use environment variables)
+      - FIREBASE_ADMIN_PROJECT_ID=${FIREBASE_ADMIN_PROJECT_ID}
+      - FIREBASE_ADMIN_CLIENT_EMAIL=${FIREBASE_ADMIN_CLIENT_EMAIL}
+      - FIREBASE_ADMIN_PRIVATE_KEY=${FIREBASE_ADMIN_PRIVATE_KEY}
+      
+      # OR Firebase Admin SDK (Option 2: Use service account file path)
+      # - FIREBASE_SERVICE_ACCOUNT_KEY_PATH=/app/firebase-service-account.json
+      
+      # Node Environment
+      - NODE_ENV=production
+    # Uncomment below if using service account file instead of env vars
+    # volumes:
+    #   - ./firebase-service-account.json:/app/firebase-service-account.json:ro
+    networks:
+      - wishtune-network
+
+networks:
+  wishtune-network:
+    driver: bridge
+
