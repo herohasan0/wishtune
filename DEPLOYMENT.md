@@ -127,6 +127,9 @@ If you see these files, you're good to go! ✅
 **On your VPS terminal (still in the project folder):**
 
 ```bash
+# Verify firebase-service-account.json exists
+ls firebase-service-account.json
+
 # Create the .env file
 nano .env
 ```
@@ -143,10 +146,19 @@ NEXTAUTH_URL=http://localhost:3000
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 
-# Firebase Admin SDK (Option 1: Environment Variables - Recommended)
-FIREBASE_ADMIN_PROJECT_ID=your-project-id
-FIREBASE_ADMIN_CLIENT_EMAIL=your-service-account-email@your-project.iam.gserviceaccount.com
-FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----\n"
+# Firebase Admin SDK - Choose ONE option:
+
+# Option 1: Use firebase-service-account.json file (Easiest - file is already on server)
+# Leave these commented out if using the file
+# FIREBASE_ADMIN_PROJECT_ID=
+# FIREBASE_ADMIN_CLIENT_EMAIL=
+# FIREBASE_ADMIN_PRIVATE_KEY=
+
+# Option 2: Use environment variables instead of file
+# Uncomment and fill these if you prefer env vars over the file
+# FIREBASE_ADMIN_PROJECT_ID=your-project-id
+# FIREBASE_ADMIN_CLIENT_EMAIL=your-service-account-email@your-project.iam.gserviceaccount.com
+# FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----\n"
 ```
 
 **To save in nano:**
@@ -160,11 +172,7 @@ openssl rand -base64 32
 ```
 Copy the output and paste it as your `AUTH_SECRET` value.
 
-**For Firebase credentials:**
-- Open your `firebase-service-account.json` file on your local computer
-- Copy the `project_id` → use as `FIREBASE_ADMIN_PROJECT_ID`
-- Copy the `client_email` → use as `FIREBASE_ADMIN_CLIENT_EMAIL`
-- Copy the `private_key` → use as `FIREBASE_ADMIN_PRIVATE_KEY` (keep the `\n` characters)
+**Important:** Since you have `firebase-service-account.json` on your VPS, you can use **Option 1** (the file). The file will be automatically used during build and runtime. You don't need to set the Firebase environment variables if using the file.
 
 ---
 

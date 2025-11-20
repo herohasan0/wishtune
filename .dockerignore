@@ -46,10 +46,11 @@ Dockerfile
 .dockerignore
 docker-compose.yml
 
-# Firebase service account (should be mounted as volume or passed via env)
-firebase-service-account.json
-*-firebase-adminsdk-*.json
-serviceAccountKey.json
+# Firebase service account - INCLUDED in build (needed for Next.js build process)
+# Note: This file is in .gitignore so it won't be committed to git
+# firebase-service-account.json
+# *-firebase-adminsdk-*.json
+# serviceAccountKey.json
 
 # Build info
 *.tsbuildinfo
