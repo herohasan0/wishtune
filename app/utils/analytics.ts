@@ -1,4 +1,4 @@
-// Google Analytics event tracking utilities
+// Google Analytics & Google Tag Manager event tracking utilities
 
 declare global {
   interface Window {
@@ -7,15 +7,27 @@ declare global {
       targetId: string,
       config?: Record<string, any>
     ) => void;
+    dataLayer?: Array<Record<string, any>>;
   }
 }
 
-// Track custom events
+// Track custom events (works with both GTM and direct GA)
 export const trackEvent = (
   eventName: string,
   parameters?: Record<string, any>
 ) => {
-  if (typeof window !== 'undefined' && window.gtag) {
+  if (typeof window === 'undefined') return;
+
+  // Try GTM dataLayer first (recommended approach)
+  if (window.dataLayer) {
+    window.dataLayer.push({
+      event: eventName,
+      ...parameters,
+    });
+  }
+  
+  // Fallback to gtag for direct GA implementation
+  if (window.gtag) {
     window.gtag('event', eventName, parameters);
   }
 };
