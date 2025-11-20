@@ -14,13 +14,13 @@ export default function Header() {
           href="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <div className="flex h-12 w-12 items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full">
             <Image
-              src="/icon.svg"
+              src="/icon-96.png"
               alt="WishTune Logo"
-              width={48}
-              height={48}
-              className="text-black"
+              width={96}
+              height={96}
+              className="text-black rounded-full"
             />
           </div>
           <span className="text-3xl font-extrabold">WishTune</span>
