@@ -3,6 +3,7 @@ import { Rubik } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "./components/SessionProvider";
 import QueryClientProvider from "./components/QueryClientProvider";
+import GoogleAnalytics from "./components/GoogleAnalytics";
 
 const rubik = Rubik({
   subsets: ["latin"],
@@ -75,6 +76,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={rubik.variable}>
+        <GoogleAnalytics />
         <QueryClientProvider>
           <SessionProvider>{children}</SessionProvider>
         </QueryClientProvider>

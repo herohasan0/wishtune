@@ -13,9 +13,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set build-time environment variables (if needed)
-# ARG NEXT_PUBLIC_APP_URL
-# ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+# Set build-time environment variables
+# These NEXT_PUBLIC_ vars are embedded into the JS bundle at build time
+ARG NEXT_PUBLIC_BASE_URL
+ARG NEXT_PUBLIC_GA_MEASUREMENT_ID
+ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
+ENV NEXT_PUBLIC_GA_MEASUREMENT_ID=$NEXT_PUBLIC_GA_MEASUREMENT_ID
 
 # Build the application
 RUN npm run build

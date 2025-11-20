@@ -15,6 +15,7 @@ import SongVariationCard from '../components/SongVariationCard';
 import SignUpSection from '../components/SignUpSection';
 import { useSongPolling } from '../hooks/useSongPolling';
 import { celebrationTypeLabels } from '../utils/constants';
+import { setupPageExitTracking, trackSongCreationStep, trackButtonClick } from '../utils/analytics';
 
 interface SongVariation {
   id: string;
@@ -105,8 +106,13 @@ function SongsPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Track page engagement time
+  useEffect(() => {
+    return setupPageExitTracking('songs_page');
+  }, []);
 
   const handleShare = async (songId: string, variationId: string) => {
+    trackButtonClick('share_song', '/songs');
     const shareUrl = `${window.location.origin}/songs/${songId}/${variationId}`;
     
     if (navigator.share) {
@@ -132,6 +138,8 @@ function SongsPageContent() {
   };
 
   const handleDownload = (songName: string, variationTitle: string, audioUrl?: string) => {
+    trackButtonClick('download_song', '/songs');
+    
     if (!audioUrl) {
       alert('Audio not available for download yet.');
       return;
@@ -173,6 +181,13 @@ function SongsPageContent() {
 
       const saveSongAndDeductCredit = async () => {
         try {
+          // Track song completion
+          trackSongCreationStep('song_completed', {
+            celebration_type: song.celebrationType,
+            music_style: song.style,
+            variations_count: song.variations.length,
+          });
+          
           // Save song to database and deduct credit (only if logged in)
           if (session?.user) {
             // Save song first

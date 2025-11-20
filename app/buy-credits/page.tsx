@@ -9,6 +9,7 @@ import Link from 'next/link';
 import Header from '../components/Header';
 import BackgroundBlobs from '../components/BackgroundBlobs';
 import Payment from '../components/Payment';
+import { trackButtonClick, setupPageExitTracking, trackPurchase } from '../utils/analytics';
 
 interface CreditInfo {
   freeSongsUsed: number;
@@ -54,6 +55,11 @@ export default function BuyCreditsPage() {
     }
   }, [session, status, router]);
 
+  // Track page engagement time
+  useEffect(() => {
+    return setupPageExitTracking('buy_credits_page');
+  }, []);
+
   // Fetch credits using React Query
   const {
     data: creditsData,
@@ -86,6 +92,14 @@ export default function BuyCreditsPage() {
   const creditPackages = packagesData?.packages ?? [];
 
   const handlePurchase = (pkg: CreditPackage) => {
+    trackButtonClick('select_credit_package', '/buy-credits');
+    trackPurchase(
+      `pkg_${pkg.id}`,
+      pkg.price,
+      'USD',
+      [{ name: pkg.name, quantity: 1, price: pkg.price }]
+    );
+    
     setSelectedPlan(pkg);
     setShowForm(true);
     // Pre-fill email from session if available

@@ -1,6 +1,7 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
+import { trackButtonClick, trackLogin } from '../utils/analytics';
 
 interface GoogleSignInButtonProps {
   onClick?: () => void;
@@ -14,6 +15,9 @@ export default function GoogleSignInButton({
   text = 'Sign in with Google',
 }: GoogleSignInButtonProps) {
   const handleClick = async () => {
+    trackButtonClick('google_sign_in');
+    trackLogin('google');
+    
     if (onClick) {
       onClick();
     } else {

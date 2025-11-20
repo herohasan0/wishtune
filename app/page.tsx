@@ -16,6 +16,7 @@ import CreateButton from './components/CreateButton';
 import CreditStatus from './components/CreditStatus';
 import Footer from './components/Footer';
 import Divider from './components/Divider';
+import { trackSongCreationStep, trackFormSubmit, trackError, setupPageExitTracking } from './utils/analytics';
 
 interface CreditInfo {
   freeSongsUsed: number;
@@ -70,6 +71,11 @@ export default function Home() {
       const count = localStorage.getItem('wishtune_songs_created');
       setSongsCreatedCount(count ? parseInt(count, 10) : 0);
     }
+  }, []);
+
+  // Track page engagement time
+  useEffect(() => {
+    return setupPageExitTracking('home_page');
   }, []);
 
   // Check for payment success in URL and refresh credits
@@ -156,6 +162,8 @@ export default function Home() {
       // Credits and localStorage count will be updated when song is successfully created (status = 'complete')
       // This happens in the songs page when the song becomes complete
       
+      trackFormSubmit('song_creation', true);
+      
       // Store song data in sessionStorage instead of URL to keep URL clean
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('wishtune_new_song', JSON.stringify(newSong));
@@ -168,6 +176,9 @@ export default function Home() {
     },
     onError: (error) => {
       console.error('Error creating song:', error);
+      trackFormSubmit('song_creation', false);
+      trackError('song_creation_error', error instanceof Error ? error.message : 'Unknown error');
+      
       if (axios.isAxiosError(error) && error.response?.data?.error) {
         alert(error.response.data.error);
       } else {
@@ -180,6 +191,7 @@ export default function Home() {
     // Check if name is missing
     if (!name.trim()) {
       setNameError(true);
+      trackError('validation_error', 'Name field empty on create');
       // Smooth scroll to the name input
       const nameInput = document.getElementById('name');
       nameInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -191,6 +203,11 @@ export default function Home() {
     setNameError(false);
     
     if (celebrationType && selectedStyle) {
+      trackSongCreationStep('create_clicked', {
+        celebration_type: celebrationType,
+        music_style: selectedStyle,
+      });
+      
       createSongMutation.mutate({
         name: name.trim(),
         celebrationType: celebrationType,
@@ -297,6 +314,9 @@ export default function Home() {
                   onNameChange={(value) => {
                     setName(value);
                     setNameError(false);
+                    if (value.trim()) {
+                      trackSongCreationStep('name_entered');
+                    }
                   }}
                 />
 
@@ -305,7 +325,10 @@ export default function Home() {
                 <CelebrationTypeSelector
                   celebrationTypes={celebrationTypes}
                   selectedType={celebrationType}
-                  onSelect={setCelebrationType}
+                  onSelect={(type) => {
+                    setCelebrationType(type);
+                    trackSongCreationStep('celebration_selected', { celebration_type: type });
+                  }}
                 />
 
                 <Divider />
@@ -313,7 +336,10 @@ export default function Home() {
                 <MusicStyleSelector
                   musicStyles={musicStyles}
                   selectedStyle={selectedStyle}
-                  onSelect={setSelectedStyle}
+                  onSelect={(style) => {
+                    setSelectedStyle(style);
+                    trackSongCreationStep('style_selected', { music_style: style });
+                  }}
                 />
               </>
             ) : showSignInPrompt ? (
