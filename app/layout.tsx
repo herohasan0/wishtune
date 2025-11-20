@@ -18,7 +18,9 @@ export const metadata: Metadata = {
     maximumScale: 5,
   },
   icons: {
-    icon: '/icon.svg',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
     shortcut: '/icon.svg',
     apple: '/icon.svg',
   },

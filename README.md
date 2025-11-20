@@ -30,18 +30,26 @@ npm install
 ```
 
 3. Set up your environment variables:
-   - Create a `.env.local` file in the root directory
+   - Create a `.env.local` file in the root directory (for local development)
    - Add your API keys and configuration:
    
 ```env
-# Suno AI Configuration
-SUNO_API_KEY=your_suno_api_key_here
-SUNO_API_BASE_URL=https://api.sunoapi.org/api/v1
+# NextAuth Configuration
+AUTH_SECRET=your_auth_secret_here
+NEXTAUTH_URL=http://localhost:3000
 
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-AUTH_SECRET=your_auth_secret_here
+
+# Firebase Admin SDK
+# Option 1: Use firebase-service-account.json file (Recommended)
+# Place firebase-service-account.json in project root
+
+# Option 2: Use environment variables
+# FIREBASE_ADMIN_PROJECT_ID=your-project-id
+# FIREBASE_ADMIN_CLIENT_EMAIL=your-service-account-email@your-project.iam.gserviceaccount.com
+# FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----\n"
 ```
 
 **Google OAuth Setup:**
@@ -126,8 +134,177 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Docker Deployment
+
+Deploy WishTune using Docker and Docker Compose for easy production deployment.
+
+### Prerequisites
+
+- Docker installed ([Install Docker](https://docs.docker.com/get-docker/))
+- Docker Compose installed (usually included with Docker Desktop)
+- Firebase project with Firestore enabled
+- Google OAuth credentials configured
+
+### Environment Variables
+
+Create a `.env` file in the project root with the following variables:
+
+```env
+# NextAuth Configuration
+AUTH_SECRET=your-generated-auth-secret-here
+NEXTAUTH_URL=https://wishtune.ai
+
+# Google OAuth Credentials
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# Firebase Admin SDK - Option 1: Use firebase-service-account.json file (Recommended)
+# Leave these commented out if using the file
+# FIREBASE_ADMIN_PROJECT_ID=
+# FIREBASE_ADMIN_CLIENT_EMAIL=
+# FIREBASE_ADMIN_PRIVATE_KEY=
+
+# Firebase Admin SDK - Option 2: Use environment variables
+# Uncomment and fill these if you prefer env vars over the file
+# FIREBASE_ADMIN_PROJECT_ID=your-project-id
+# FIREBASE_ADMIN_CLIENT_EMAIL=your-service-account-email@your-project.iam.gserviceaccount.com
+# FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----\n"
+```
+
+**Generate AUTH_SECRET:**
+```bash
+openssl rand -base64 32
+```
+
+### Firebase Service Account Setup
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Select your project → Project Settings → Service Accounts
+3. Click "Generate new private key"
+4. Save the downloaded JSON file as `firebase-service-account.json` in the project root
+
+### Build and Run
+
+**Development:**
+```bash
+# Build the Docker image
+docker-compose build
+
+# Start the container
+docker-compose up
+
+# Or run in detached mode
+docker-compose up -d
+```
+
+**Production:**
+```bash
+# Build without cache (recommended for production)
+docker-compose build --no-cache
+
+# Start in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+```
+
+### Common Commands
+
+```bash
+# Stop the application
+docker-compose down
+
+# Restart the application
+docker-compose restart
+
+# Rebuild and restart
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f wishtune
+
+# Check container status
+docker-compose ps
+
+# Execute commands in container
+docker-compose exec wishtune sh
+```
+
+### Production Deployment Checklist
+
+- [ ] Firebase project created and Firestore enabled
+- [ ] Firebase service account JSON file added to project root
+- [ ] Google OAuth credentials created with correct redirect URIs
+- [ ] `.env` file created with all required variables
+- [ ] `NEXTAUTH_URL` set to production domain (e.g., `https://wishtune.ai`)
+- [ ] OAuth redirect URI includes production domain: `https://wishtune.ai/api/auth/callback/google`
+- [ ] Docker and Docker Compose installed
+- [ ] Container builds successfully: `docker-compose build --no-cache`
+- [ ] Application starts without errors: `docker-compose up -d`
+- [ ] Application accessible at configured port (default: 3000)
+
+### Troubleshooting
+
+**Container won't start:**
+```bash
+# Check logs for errors
+docker-compose logs wishtune
+
+# Verify environment variables
+docker-compose exec wishtune env | grep -E "FIREBASE|GOOGLE|AUTH"
+```
+
+**Firebase connection issues:**
+- Verify `firebase-service-account.json` exists and has correct permissions
+- Check Firebase service account has Firestore permissions
+- Ensure environment variables match Firebase project
+
+**Google OAuth not working:**
+- Verify `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are correct
+- Check OAuth redirect URI matches exactly: `https://yourdomain.com/api/auth/callback/google`
+- Ensure `NEXTAUTH_URL` matches your production domain
+
+**Seeing old content after deployment:**
+```bash
+# Force rebuild without cache
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+
+# Clear browser cache (Ctrl+Shift+R or Cmd+Shift+R)
+```
+
+### Reverse Proxy Setup (Nginx)
+
+If using Nginx as a reverse proxy, configure it to proxy requests to `http://localhost:3000`:
+
+```nginx
+server {
+    listen 80;
+    server_name wishtune.ai;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Then set up SSL with Let's Encrypt:
+```bash
+sudo certbot --nginx -d wishtune.ai
+```
+
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Alternatively, you can deploy your Next.js app using the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
