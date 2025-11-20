@@ -14,20 +14,14 @@ export default function Header() {
           href="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F18A24] text-white">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Musical note */}
-              <path
-                d="M9 3v8.5c0 1.38-1.12 2.5-2.5 2.5S4 12.88 4 11.5s1.12-2.5 2.5-2.5c.17 0 .34.02.5.05V3h2z"
-                fill="currentColor"
-              />
-              <circle cx="6.5" cy="11.5" r="2" fill="currentColor" />
-              {/* Star sparkle for wish */}
-              <path
-                d="M16 2l.5 1 1 .5-1 .5-.5 1-.5-1-1-.5 1-.5.5-1z"
-                fill="currentColor"
-              />
-            </svg>
+          <div className="flex h-12 w-12 items-center justify-center">
+            <Image
+              src="/icon.svg"
+              alt="WishTune Logo"
+              width={48}
+              height={48}
+              className="text-black"
+            />
           </div>
           <span className="text-3xl font-extrabold">WishTune</span>
         </Link>

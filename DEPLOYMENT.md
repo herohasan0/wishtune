@@ -222,16 +222,61 @@ Before running `docker-compose up -d --build`, make sure:
 
 ## Step 6: Access Your Application
 
-Your app is now running on port 3000. You can access it in two ways:
+Your app is now running on port 3000. Here's how to access it:
+
+### Find Your Server IP Address
+
+**On your VPS terminal, run one of these commands:**
+
+```bash
+# Method 1: Get public IP address
+curl ifconfig.me
+
+# Method 2: Get all network interfaces
+ip addr show
+
+# Method 3: Get IP address (alternative)
+hostname -I
+
+# Method 4: Check external IP
+curl ipinfo.io/ip
+```
+
+**The easiest method is:**
+```bash
+curl ifconfig.me
+```
+
+This will show your server's public IP address (something like `123.45.67.89`).
+
+**You can also check your VPS provider's dashboard** - they usually display your server's IP address there.
 
 ### Option 1: Direct IP Access (Temporary - for testing)
 
-Visit: `http://your-server-ip:3000` in your browser
+1. **Open port 3000 in your firewall** (if firewall is enabled):
+   ```bash
+   # Check if firewall is active
+   sudo ufw status
+   
+   # If firewall is active, allow port 3000
+   sudo ufw allow 3000
+   ```
 
-**Note:** You may need to open port 3000 in your VPS firewall:
-```bash
-sudo ufw allow 3000
-```
+2. **Visit in your browser:**
+   ```
+   http://YOUR-SERVER-IP:3000
+   ```
+   
+   Replace `YOUR-SERVER-IP` with the IP address you found above.
+   
+   Example: `http://123.45.67.89:3000`
+
+3. **Test from your VPS terminal** (to verify it's working):
+   ```bash
+   curl http://localhost:3000
+   ```
+   
+   If you see HTML output, the app is working! ✅
 
 ### Option 2: Set Up Domain with Nginx (Recommended for production)
 
@@ -364,7 +409,245 @@ This allows you to access your app via a domain name (like `https://yourdomain.c
    sudo certbot --nginx -d yourdomain.com
    ```
    
-   Follow the prompts. Certbot will automatically configure HTTPS for you!
+   **Step-by-step certbot prompts:**
+   
+   **Prompt 1: Email address**
+   ```
+   Enter email address (used for urgent renewal and security notices)
+   ```
+   - Enter your email address (e.g., `yourname@example.com`)
+   - This email is used for certificate expiration warnings and security notices
+   - Press `Enter` to continue
+   
+   **Prompt 2: Terms of Service**
+   ```
+   (A)gree/(C)ancel:
+   ```
+   - Type `A` and press `Enter` to agree to the terms
+   
+   **Prompt 3: Share email with EFF**
+   ```
+   (Y)es/(N)o:
+   ```
+   - Type `Y` or `N` (your choice - this is optional)
+   - Press `Enter`
+   
+   **Prompt 4: Redirect HTTP to HTTPS**
+   ```
+   Please choose whether or not to redirect HTTP traffic to HTTPS, removing HTTP access.
+   -------------------------------------------------------------------------------
+   1: No redirect - Make no further changes to the webserver configuration.
+   2: Redirect - Make all requests redirect to secure HTTPS access.
+   ```
+   - **Choose option `2`** (Redirect) - This is recommended for security
+   - Type `2` and press `Enter`
+   
+   **Success!** Certbot will automatically:
+   - Generate SSL certificates
+   - Configure Nginx to use HTTPS
+   - Set up automatic certificate renewal
+   
+   You should see a success message like:
+   ```
+   Congratulations! You have successfully enabled https://yourdomain.com
+   ```
+   
+   **Important:** After SSL is set up, make sure your `.env` file uses `https://`:
+   ```bash
+   nano .env
+   ```
+   
+   Update `NEXTAUTH_URL`:
+   ```env
+   NEXTAUTH_URL=https://yourdomain.com
+   ```
+   
+   Then restart your app:
+   ```bash
+   docker-compose restart
+   ```
+   
+   Your app is now accessible at `https://yourdomain.com` (secure HTTPS)! 🔒
+
+### Configuring DNS for Your Domain (Squarespace)
+
+**If you bought your domain from Squarespace, follow these steps:**
+
+**Step 1: Access DNS Settings**
+1. Log into your Squarespace account
+2. Go to **Settings** → **Domains**
+3. Click on your domain (`wishtune.ai`)
+4. Click on **DNS Settings**
+
+**Step 2: Add/Edit A Record**
+1. Look for **A Records** section (or **Custom Records**)
+2. You need to add/edit an A record:
+   - **Type:** `A`
+   - **Host:** `@` (or leave blank, or `wishtune.ai`)
+   - **Points to:** `198.49.23.144` (your VPS IP address)
+   - **TTL:** `3600` (or leave default)
+
+**Step 3: Remove/Disable Conflicting Records**
+- If there's an existing A record pointing to Squarespace's IP, either:
+  - Delete it, OR
+  - Change it to point to `198.49.23.144`
+
+**Step 4: Save Changes**
+- Click **Save** or **Apply**
+- DNS changes can take 5 minutes to 48 hours to propagate (usually 10-30 minutes)
+
+**Step 5: Verify DNS (on your VPS terminal)**
+```bash
+# Wait 10 minutes, then check
+dig +short wishtune.ai
+
+# Should show: 198.49.23.144
+# If it shows multiple IPs, you need to clean up DNS records
+# If it shows a different IP or nothing, wait longer
+```
+
+**If you see multiple IP addresses:**
+```bash
+# First, verify which IP is YOUR VPS
+curl ifconfig.me
+
+# This shows YOUR actual server IP
+# Compare with the dig results
+```
+
+**You should only have ONE A record pointing to your VPS IP.** Multiple IPs can cause:
+- SSL certificate issues (certbot can't verify)
+- Inconsistent routing
+- Connection problems
+
+**To fix:** Go back to Squarespace DNS settings and:
+1. **Delete all A records** except one
+2. Keep only the A record pointing to your VPS IP (`198.49.23.144`)
+3. Remove any A records pointing to Squarespace IPs (like `198.185.159.144`, `198.185.159.145`, `198.49.23.145`)
+
+**Important Notes:**
+- **"Domain Connect"** - You can ignore this (it's for connecting to other services)
+- **"Email Security"** - You can ignore this (it's for email records like SPF/DKIM)
+- **"Defaults"** - These are Squarespace's default DNS settings, you'll override them with your A record
+
+**If you can't find A Records section:**
+- Look for **"Custom Records"** or **"Advanced DNS"**
+- Some Squarespace interfaces show it under **"External Records"**
+- If you're using Squarespace's website builder, you might need to disconnect the domain from Squarespace hosting first
+
+**Alternative: Transfer DNS Management**
+If Squarespace doesn't allow custom A records easily, you can:
+1. Use a free DNS service like Cloudflare
+2. Change nameservers in Squarespace to point to Cloudflare
+3. Configure DNS in Cloudflare (which is easier and more flexible)
+
+### Troubleshooting Certbot SSL Setup Errors
+
+**If you get an error like:**
+```
+Certbot failed to authenticate some domains
+Invalid response from http://yourdomain.com/.well-known/acme-challenge/...
+404 error
+```
+
+**This means certbot can't verify your domain. Follow these steps:**
+
+**Step 1: Verify DNS is pointing to your server**
+```bash
+# Check what IP your domain points to
+dig +short wishtune.ai
+# or
+nslookup wishtune.ai
+
+# Compare with your server IP
+curl ifconfig.me
+```
+
+**The IPs should match!** If they don't:
+- Go to your domain registrar (where you bought wishtune.ai)
+- Update DNS A record to point to your server IP (`198.49.23.144`)
+- Wait 5-30 minutes for DNS to propagate
+- Verify again with `dig +short wishtune.ai`
+
+**Step 2: Verify Nginx is running and configured**
+```bash
+# Check if Nginx is running
+sudo systemctl status nginx
+
+# If not running, start it
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+# Check Nginx configuration
+sudo nginx -t
+
+# View your Nginx config
+sudo cat /etc/nginx/sites-available/wishtune
+```
+
+**Make sure the config has `server_name wishtune.ai;` (not `yourdomain.com`)**
+
+**Step 3: Verify port 80 is open**
+```bash
+# Check firewall
+sudo ufw status
+
+# Allow HTTP (port 80) and HTTPS (port 443)
+sudo ufw allow 80
+sudo ufw allow 443
+
+# Check if Nginx is listening on port 80
+sudo netstat -tlnp | grep :80
+# Should show nginx listening
+```
+
+**Step 4: Test domain accessibility**
+```bash
+# Test from your server
+curl -I http://wishtune.ai
+
+# Should return HTTP 200 or 301/302 redirect
+# If you get "Connection refused" or timeout, DNS isn't working
+```
+
+**Step 5: Verify your app is running**
+```bash
+# Make sure Docker container is running
+docker-compose ps
+
+# Test local connection
+curl http://localhost:3000
+```
+
+**Step 6: Check Nginx can reach your app**
+```bash
+# Test the proxy
+curl -H "Host: wishtune.ai" http://localhost
+# Should return HTML from your app
+```
+
+**Step 7: Remove default Nginx site (if it exists)**
+```bash
+# Check if default site is enabled
+ls -la /etc/nginx/sites-enabled/
+
+# If you see 'default', remove it (it might conflict)
+sudo rm /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+**Step 8: Try certbot again**
+```bash
+# After fixing DNS and Nginx, try again
+sudo certbot --nginx -d wishtune.ai
+```
+
+**Common fixes:**
+- **DNS not propagated:** Wait 30 minutes and try again
+- **Wrong server_name in Nginx:** Make sure it matches your domain exactly
+- **Port 80 blocked:** Open port 80 in firewall and VPS provider's dashboard
+- **Default Nginx site conflicting:** Remove `/etc/nginx/sites-enabled/default`
 
 ## Updating Your Application
 
@@ -482,23 +765,73 @@ docker-compose logs wishtune
 
 ### Can't access the app from browser
 
-**Check:**
+**Step 1: Verify the app is running:**
 ```bash
-# Is the container running?
+# Check if container is running
 docker-compose ps
 
-# Is port 3000 open?
-sudo ufw status
-sudo ufw allow 3000  # If not open, run this
-
-# Test locally on server
-curl http://localhost:3000
+# Should show "Up" status for wishtune service
 ```
 
-**If curl works but browser doesn't:**
-- Check your VPS firewall settings
-- Verify your domain DNS is pointing to your VPS IP
-- Make sure you're using `http://` (not `https://`) unless you set up SSL
+**Step 2: Test locally on the server:**
+```bash
+# Test if app responds locally
+curl http://localhost:3000
+
+# If this works, the app is running correctly ✅
+```
+
+**Step 3: Find your server IP:**
+```bash
+# Get your public IP
+curl ifconfig.me
+
+# Or check your VPS provider's dashboard for the IP address
+```
+
+**Step 4: Check firewall:**
+```bash
+# Check firewall status
+sudo ufw status
+
+# If firewall is active, allow port 3000
+sudo ufw allow 3000
+
+# Verify port is open
+sudo ufw status | grep 3000
+```
+
+**Step 5: Check if port is listening:**
+```bash
+# Verify Docker is listening on port 3000
+sudo netstat -tlnp | grep 3000
+# or
+sudo ss -tlnp | grep 3000
+```
+
+**Step 6: Try accessing from browser:**
+```
+http://YOUR-SERVER-IP:3000
+```
+
+**Common issues:**
+
+- **"Connection refused" or timeout:**
+  - Firewall is blocking port 3000 → Run `sudo ufw allow 3000`
+  - Your VPS provider might have a firewall in their dashboard → Check there too
+  - Container isn't running → Run `docker-compose up -d`
+
+- **"This site can't be reached":**
+  - Wrong IP address → Double-check with `curl ifconfig.me`
+  - Port 3000 not accessible from outside → Check VPS provider's firewall/security groups
+  - Using `https://` instead of `http://` → Use `http://` unless you set up SSL
+
+- **Works locally but not from browser:**
+  - VPS provider firewall blocking the port → Check their dashboard/security groups
+  - Your local network firewall blocking → Try from a different network/mobile data
+
+**VPS Provider Firewalls:**
+Many VPS providers (like DigitalOcean, AWS, Hetzner, etc.) have their own firewall/security group settings in their dashboard. Make sure port 3000 is open there too!
 
 ## Security Notes
 
