@@ -61,7 +61,7 @@ export default function CreditStatus() {
         <div>
           <h3 className="text-sm font-semibold text-[#2F1E14]">Your Credits</h3>
           <div className="mt-1 flex gap-4 text-xs text-[#8F6C54]">
-            {hasFreeSongsRemaining && (
+            {hasFreeSongsRemaining && !hasPaidCredits && (
               <span>
                 🎵 {2 - credits.totalSongsCreated} free song{2 - credits.totalSongsCreated !== 1 ? 's' : ''} remaining
               </span>

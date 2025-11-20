@@ -32,6 +32,7 @@ export default function BuyCreditsPage() {
   const [selectedPlan, setSelectedPlan] = useState<CreditPackage | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formResponse, setFormResponse] = useState<string | null>(null);
+  const [isEditingBilling, setIsEditingBilling] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -120,19 +121,17 @@ export default function BuyCreditsPage() {
     },
   });
 
-  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!selectedPlan) return;
-    
+  // Helper function to prepare payment data
+  const preparePaymentData = (plan: CreditPackage) => {
     // Split full name into name and surname
     const nameParts = formData.fullName.trim().split(/\s+/);
     const name = nameParts[0] || '';
     const surname = nameParts.slice(1).join(' ') || name; // Use first name as surname if only one word
     
-    const data = {
+    return {
       locale: "en",
-      price: selectedPlan.price,
-      paidPrice: selectedPlan.price,
+      price: plan.price,
+      paidPrice: plan.price,
       currency: "USD",
       callbackUrl: `${window.location.origin}/api/payment-callback`,
       buyer: {
@@ -140,7 +139,7 @@ export default function BuyCreditsPage() {
         name: name,
         surname: surname,
         identityNumber: "11111111111",
-        email: formData.email,
+        email: session?.user?.email || '',
         gsmNumber: "+15551234567",
         registrationAddress: formData.address,
         city: formData.city,
@@ -160,15 +159,29 @@ export default function BuyCreditsPage() {
       },
       basketItems: [
         {
-          id: selectedPlan.id,
-          price: selectedPlan.price,
-          name: selectedPlan.name,
+          id: plan.id,
+          price: plan.price,
+          name: plan.name,
           category1: "Credits",
           itemType: "VIRTUAL"
         }
       ]
     };
+  };
 
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedPlan) return;
+    
+    const data = preparePaymentData(selectedPlan);
+    initializeFormMutation.mutate(data);
+  };
+
+  const handleSaveBillingAddress = () => {
+    if (!selectedPlan) return;
+    
+    setIsEditingBilling(false);
+    const data = preparePaymentData(selectedPlan);
     initializeFormMutation.mutate(data);
   };
 
@@ -224,8 +237,139 @@ export default function BuyCreditsPage() {
             </div>
             <span className="text-sm font-medium text-[#2F1E14]">Back</span>
           </button>
+          
+          {/* Billing Address Section */}
+          <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F18A24]">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                <h2 className="text-sm font-semibold text-[#2F1E14]">Billing Address</h2>
+              </div>
+              {!isEditingBilling && (
+                <button
+                  onClick={() => setIsEditingBilling(true)}
+                  className="flex items-center gap-1 text-xs font-medium text-[#F18A24] hover:text-[#E07212] transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  Edit
+                </button>
+              )}
+            </div>
+            
+            {isEditingBilling ? (
+              <div className="space-y-3">
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    value={formData.fullName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
+                    className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Address"
+                    value={formData.address}
+                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                    className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="City"
+                    value={formData.city}
+                    onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                    className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Country"
+                    value={formData.country}
+                    onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                    className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => setIsEditingBilling(false)}
+                    className="flex-1 rounded-lg border border-[#F3E4D6] px-3 py-2 text-xs font-medium text-[#8F6C54] hover:bg-[#FFF5EB] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveBillingAddress}
+                    disabled={initializeFormMutation.isPending}
+                    className="flex-1 rounded-lg bg-[#F18A24] px-3 py-2 text-xs font-medium text-white hover:bg-[#E07212] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {initializeFormMutation.isPending ? 'Updating...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-[#2F1E14] space-y-1">
+                <p>{formData.fullName || '-'}</p>
+                <p className="text-[#8F6C54]">{session?.user?.email || '-'}</p>
+                <p>{formData.address || '-'}</p>
+                <p>{formData.city || '-'}, {formData.country || '-'}</p>
+              </div>
+            )}
+          </div>
+          
           <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-6 shadow-sm">
             <Payment formResponse={formResponse} />
+          </div>
+          
+          {/* Trust Indicators */}
+          <div className="rounded-lg border border-[#F3E4D6] bg-gradient-to-r from-[#FFF5EB] to-white p-6 shadow-sm">
+            <div className="flex flex-col items-center gap-4 text-center">
+              {/* Security Badge */}
+              <div className="flex items-center gap-2 text-[#2F1E14]">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F18A24]">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <span className="text-lg font-semibold">Secure Payment</span>
+              </div>
+              
+              {/* Trust Text */}
+              <p className="text-sm text-[#8F6C54] max-w-md">
+                Your payment information is encrypted and secure. We use industry-standard SSL encryption to protect your data.
+              </p>
+              
+              {/* Security Features */}
+              <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
+                <div className="flex items-center gap-1.5 text-xs text-[#8F6C54]">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F18A24]">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <path d="M9 12l2 2 4-4"></path>
+                  </svg>
+                  <span>256-bit SSL</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-[#8F6C54]">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F18A24]">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <path d="M9 12l2 2 4-4"></path>
+                  </svg>
+                  <span>PCI Compliant</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-[#8F6C54]">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F18A24]">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <path d="M9 12l2 2 4-4"></path>
+                  </svg>
+                  <span>Secure Checkout</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
@@ -379,12 +523,6 @@ export default function BuyCreditsPage() {
               </div>
               <p>Credits never expire - use them whenever you want</p>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#F18A24]/20 text-[#F18A24]">
-                <span className="text-xs">3</span>
-              </div>
-              <p>You get 2 free songs when you first sign up</p>
-            </div>
           </div>
         </div>
 
@@ -433,20 +571,6 @@ export default function BuyCreditsPage() {
                     required
                     value={formData.fullName}
                     onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                    className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-[#2F1E14] mb-1">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
                   />
                 </div>
