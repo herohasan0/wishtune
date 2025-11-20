@@ -32,7 +32,6 @@ export async function getCreditPackages(): Promise<CreditPackage[]> {
         ...doc.data(),
       })) as CreditPackage[];
 
-      console.log(`✅ Fetched ${packages.length} packages with orderBy`);
       return packages;
     } catch (orderByError: unknown) {
       // If orderBy fails (likely due to missing index), fetch without orderBy
@@ -50,7 +49,6 @@ export async function getCreditPackages(): Promise<CreditPackage[]> {
         })) as CreditPackage[];
 
         const sorted = packages.sort((a, b) => a.price - b.price);
-        console.log(`✅ Fetched ${sorted.length} packages without orderBy`);
         return sorted;
       }
       throw orderByError;
@@ -60,7 +58,6 @@ export async function getCreditPackages(): Promise<CreditPackage[]> {
     
     // Final fallback: fetch all packages and filter in memory
     try {
-      console.log('⚠️ Attempting fallback: fetching all packages');
       const packagesSnapshot = await db
         .collection(PACKAGES_COLLECTION)
         .get();
@@ -76,7 +73,6 @@ export async function getCreditPackages(): Promise<CreditPackage[]> {
       );
 
       const sorted = activePackages.sort((a, b) => a.price - b.price);
-      console.log(`✅ Fetched ${sorted.length} packages (fallback mode)`);
       return sorted;
     } catch (fallbackError) {
       console.error('❌ Error fetching credit packages (final fallback):', fallbackError);

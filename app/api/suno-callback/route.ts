@@ -6,10 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔔 Suno AI callback received');
-    
     const body = await request.json();
-    console.log('📥 Callback data:', JSON.stringify(body, null, 2));
 
     // Store the callback data or process it
     // For now, we'll just log it to see what we receive

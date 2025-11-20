@@ -12,9 +12,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('🔍 Checking song status for taskId:', taskId);
-    console.log('📦 Returning mock response (API calls disabled)');
-
     // Mock response - return hardcoded data instead of making API request
     // NOTE: Original Suno AI mock URLs (commented out for later use):
     // audioUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2.mp3',
@@ -54,8 +51,6 @@ export async function GET(request: NextRequest) {
         }
       ]
     };
-
-    console.log('✅ Returning mock data with', mockResponse.variations.length, 'variations');
     
     return NextResponse.json(mockResponse, { status: 200 });
   } catch (error) {

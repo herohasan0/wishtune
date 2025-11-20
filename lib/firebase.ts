@@ -19,7 +19,6 @@ function initializeFirebaseApp(): App {
         readFileSync(serviceAccountPath, 'utf8')
       );
       credential = cert(serviceAccount);
-      console.log('✅ Firebase Admin initialized from service account JSON file');
     } catch (error) {
       console.error('❌ Error loading service account JSON file:', error);
       throw new Error('Failed to load Firebase service account key file');
@@ -36,7 +35,6 @@ function initializeFirebaseApp(): App {
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, '\n'),
     });
-    console.log('✅ Firebase Admin initialized from environment variables');
   }
   // Option 3: Try to load from default location (firebase-service-account.json in project root)
   else {
@@ -44,7 +42,6 @@ function initializeFirebaseApp(): App {
       const defaultPath = join(process.cwd(), 'firebase-service-account.json');
       const serviceAccount = JSON.parse(readFileSync(defaultPath, 'utf8'));
       credential = cert(serviceAccount);
-      console.log('✅ Firebase Admin initialized from default service account file');
     } catch {
       // Option 4: Use application default credentials (for local development with gcloud)
       // Or use project ID only (will use default credentials if available)

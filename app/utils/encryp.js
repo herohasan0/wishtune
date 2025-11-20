@@ -1,4 +1,14 @@
 import CryptoJS from "crypto-js";
+import { randomBytes } from "crypto";
+
+/**
+ * Generate a cryptographically secure random key
+ * @returns {string} A random key string
+ */
+function generateSecureRandomKey() {
+  // Use crypto.randomBytes (Node.js) - this runs server-side only
+  return randomBytes(16).toString('hex');
+}
 
 export function generateAuthorizationForPostRequest({
   apiKey,
@@ -6,7 +16,8 @@ export function generateAuthorizationForPostRequest({
   data,
   uriPath,
 }) {
-  const randomKey = new Date().getTime() + "123456789";
+  // Generate a cryptographically secure random key instead of predictable timestamp
+  const randomKey = generateSecureRandomKey();
   const uri_path = uriPath;
   const payload = randomKey + uri_path + data;
   const encryptedData = CryptoJS.HmacSHA256(payload, secretKey);
@@ -30,7 +41,8 @@ export function generateAuthorizationForGetRequest({
   secretKey,
   request,
 }) {
-  const randomKey = "123456789";
+  // Use cryptographically secure random key instead of hardcoded value
+  const randomKey = generateSecureRandomKey();
   const startIndex = request.url.indexOf("/v2");
   const endIndex = request.url.indexOf("?");
   const uri_path = request.url.substring(startIndex, endIndex);

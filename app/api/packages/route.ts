@@ -6,9 +6,7 @@ import { getCreditPackages } from '@/lib/packages';
  */
 export async function GET(request: NextRequest) {
   try {
-    console.log('📦 Fetching credit packages...');
     const packages = await getCreditPackages();
-    console.log(`✅ Found ${packages.length} packages`);
     
     return NextResponse.json({
       packages,

@@ -10,13 +10,9 @@ interface SongRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🎵 Song creation request received');
-    
     const session = await auth();
     const body: SongRequest = await request.json();
     const { name, celebrationType, musicStyle } = body;
-
-    console.log('Request params:', { name, celebrationType, musicStyle });
 
     if (!name || !celebrationType || !musicStyle) {
       console.error('❌ Missing required fields');
@@ -30,7 +26,6 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       // Check if anonymous song was already created (via header or cookie)
       // For now, we'll allow it and let the frontend track it
-      console.log('📝 Anonymous song creation - allowing first song');
     } else {
       // Check if user has credits (logged in users)
     const creditCheck = await canCreateSong(session.user.id, session.user.email);
@@ -43,8 +38,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Mock response - return pending song with taskId for polling
-    console.log('📦 Returning mock response (API calls disabled)');
-    
     // NOTE: For instant testing without polling, uncomment this complete response:
     /*
     const mockSong = {
@@ -117,7 +110,6 @@ export async function POST(request: NextRequest) {
     // Credits will be deducted when song is successfully created (status = 'complete')
     // This happens in the songs page when the song becomes complete
 
-    console.log('✅ Returning mock song with', mockSong.variations.length, 'variations');
     return NextResponse.json(mockSong, { status: 200 });
   } catch (error) {
     console.error('❌ Unexpected error creating song:', error);

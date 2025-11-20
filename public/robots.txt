@@ -1,0 +1,18 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow authentication and API routes
+Disallow: /api/
+Disallow: /account
+
+# Allow specific public pages
+Allow: /
+Allow: /about
+Allow: /contact
+Allow: /faq
+Allow: /buy-credits
+
+# Sitemap location
+Sitemap: https://wishtune.ai/sitemap.xml
+

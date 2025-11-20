@@ -177,11 +177,9 @@ function SongsPageContent() {
           if (session?.user) {
             // Save song first
             await saveSongMutation.mutateAsync(song);
-            console.log('✅ Song saved to database');
             
             // Deduct 1 credit for the song (regardless of variations)
             await deductCreditMutation.mutateAsync();
-            console.log('✅ 1 credit deducted successfully');
             
             // Update localStorage count after successful credit deduction
             if (typeof window !== 'undefined') {

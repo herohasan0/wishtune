@@ -10,8 +10,49 @@ const rubik = Rubik({
 });
 
 export const metadata: Metadata = {
-  title: "WishTune - Create Celebration Songs",
-  description: "Create personalized songs for birthdays and special celebrations in just a few clicks",
+  title: {
+    default: "WishTune - Create Personalized Celebration Songs with AI",
+    template: "%s | WishTune"
+  },
+  description: "Create personalized AI-powered celebration songs for birthdays, anniversaries, weddings, and more. Choose from multiple music styles and download your unique song in minutes.",
+  keywords: ["celebration songs", "birthday songs", "AI music", "personalized songs", "custom songs", "anniversary songs", "wedding songs"],
+  authors: [{ name: "WishTune" }],
+  creator: "WishTune",
+  publisher: "WishTune",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://wishtune.ai'),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: "WishTune - Create Personalized Celebration Songs",
+    description: "Create personalized AI-powered celebration songs for any special occasion. Multiple music styles, instant generation.",
+    url: 'https://wishtune.ai',
+    siteName: 'WishTune',
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "WishTune - Create Personalized Celebration Songs",
+    description: "Create personalized AI-powered celebration songs for any special occasion.",
+    creator: '@wishtune',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   viewport: {
     width: "device-width",
     initialScale: 1,

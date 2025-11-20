@@ -11,10 +11,7 @@ import { getCreditPackageById } from '@/lib/packages';
  */
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔔 Payment callback received from iyzico');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
-    // Log request URL and query parameters
+    // Parse request URL and query parameters
     const url = request.url;
     const searchParams = request.nextUrl.searchParams;
     const queryParams: Record<string, string> = {};
@@ -23,15 +20,11 @@ export async function POST(request: NextRequest) {
       queryParams[key] = value;
     });
     
-    console.log('📍 Request URL:', url);
-    console.log('🔍 Query Parameters:', JSON.stringify(queryParams, null, 2));
-    
-    // Log headers
+    // Parse headers
     const headers: Record<string, string> = {};
     request.headers.forEach((value, key) => {
       headers[key] = value;
     });
-    console.log('📋 Headers:', JSON.stringify(headers, null, 2));
     
     // Try to get body as JSON first
     let body: Record<string, unknown> | null = null;
@@ -39,13 +32,11 @@ export async function POST(request: NextRequest) {
     
     try {
       bodyText = await request.text();
-      console.log('📦 Raw Body (text):', bodyText);
       
       // Try to parse as JSON
       if (bodyText) {
         try {
           body = JSON.parse(bodyText) as Record<string, unknown>;
-          console.log('📦 Body (JSON):', JSON.stringify(body, null, 2));
         } catch {
           // If not JSON, try to parse as URL-encoded form data
           try {
@@ -55,31 +46,19 @@ export async function POST(request: NextRequest) {
               formParams[key] = value;
             });
             body = formParams;
-            console.log('📦 Body (Form Data):', JSON.stringify(body, null, 2));
           } catch {
-            console.log('📦 Body (could not parse as JSON or Form Data)');
+            // Could not parse as JSON or Form Data
           }
         }
       }
     } catch (error) {
-      console.log('❌ Error reading body:', error);
+      // Error reading body
     }
-    
-    // Log all request details together
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📊 COMPLETE CALLBACK DATA SUMMARY:');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('URL:', url);
-    console.log('Query Params:', queryParams);
-    console.log('Headers:', headers);
-    console.log('Body:', body || bodyText || '(empty)');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
     // Extract token from body
     const token = (body?.token as string | undefined) || queryParams?.token;
     
     if (!token) {
-      console.log('⚠️ No token found in callback');
       return NextResponse.json({ 
         success: false,
         message: 'No token found in callback',
@@ -89,10 +68,6 @@ export async function POST(request: NextRequest) {
         }
       }, { status: 400 });
     }
-    
-    console.log('🎫 Extracted token:', token);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔄 Making request to iyzico detail endpoint...');
     
     // Prepare request data
     const detailRequestData = {
@@ -108,9 +83,6 @@ export async function POST(request: NextRequest) {
       data: requestDataString,
       uriPath: '/payment/iyzipos/checkoutform/auth/ecom/detail',
     });
-    
-    console.log('🔐 Authorization header generated');
-    console.log('📤 Request data:', requestDataString);
     
     // Make request to iyzico detail endpoint
     const iyzipayBase = axios.create({
@@ -128,14 +100,6 @@ export async function POST(request: NextRequest) {
         detailRequestData
       );
       
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('✅ IYZICO DETAIL API RESPONSE:');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('Status:', detailResponse.status);
-      console.log('Status Text:', detailResponse.statusText);
-      console.log('Response Data:', JSON.stringify(detailResponse.data, null, 2));
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
       const detailData = detailResponse.data as {
         paymentStatus?: string;
         itemTransactions?: Array<{ itemId?: string }>;
@@ -144,8 +108,6 @@ export async function POST(request: NextRequest) {
       
       // Check if payment was successful
       if (detailData.paymentStatus === 'SUCCESS') {
-        console.log('✅ Payment status is SUCCESS - processing credit addition...');
-        
         // Get user session
         const session = await auth();
         
@@ -187,8 +149,6 @@ export async function POST(request: NextRequest) {
           return NextResponse.redirect(`${origin}/?error=no_item_id`, { status: 303 });
         }
         
-        console.log('📦 Item ID:', itemId);
-        
         // Get the package to find credit amount
         const creditPackage = await getCreditPackageById(itemId);
         if (!creditPackage) {
@@ -196,8 +156,6 @@ export async function POST(request: NextRequest) {
           const origin = request.nextUrl.origin;
           return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
         }
-        
-        console.log(`💰 Adding ${creditPackage.credits} credits to user ${session.user.id}`);
         
         // Add credits to user account
         const addCreditsResult = await addPaidCredits(
@@ -212,13 +170,10 @@ export async function POST(request: NextRequest) {
           return NextResponse.redirect(`${origin}/?error=credit_add_failed`, { status: 303 });
         }
         
-        console.log(`✅ Successfully added ${creditPackage.credits} credits to user account`);
-        
         // Redirect to create song page (home page) with 303 status to force GET method
         const origin = request.nextUrl.origin;
         return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
       } else {
-        console.log(`⚠️ Payment status is not SUCCESS: ${detailData.paymentStatus}`);
         // Redirect to home page with error
         const origin = request.nextUrl.origin;
         return NextResponse.redirect(`${origin}/?payment=failed`, { status: 303 });
@@ -271,14 +226,9 @@ export async function GET(request: NextRequest) {
     queryParams[key] = value;
   });
   
-  console.log('🔍 GET request to payment-callback');
-  console.log('Query Parameters:', JSON.stringify(queryParams, null, 2));
-  
   // If token is provided in query params, process the payment
   const token = queryParams.token;
   if (token) {
-    console.log('🎫 Token found in GET request, processing payment...');
-    
     try {
       // Prepare request data
       const detailRequestData = {
@@ -318,8 +268,6 @@ export async function GET(request: NextRequest) {
       
       // Check if payment was successful
       if (detailData.paymentStatus === 'SUCCESS') {
-        console.log('✅ Payment status is SUCCESS - processing credit addition...');
-        
         // Get user session
         const session = await auth();
         
@@ -344,8 +292,6 @@ export async function GET(request: NextRequest) {
           return NextResponse.redirect(`${origin}/?error=no_item_id`, { status: 303 });
         }
         
-        console.log('📦 Item ID:', itemId);
-        
         // Get the package to find credit amount
         const creditPackage = await getCreditPackageById(itemId);
         if (!creditPackage) {
@@ -353,8 +299,6 @@ export async function GET(request: NextRequest) {
           const origin = request.nextUrl.origin;
           return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
         }
-        
-        console.log(`💰 Adding ${creditPackage.credits} credits to user ${session.user.id}`);
         
         // Add credits to user account
         const addCreditsResult = await addPaidCredits(
@@ -369,13 +313,10 @@ export async function GET(request: NextRequest) {
           return NextResponse.redirect(`${origin}/?error=credit_add_failed`, { status: 303 });
         }
         
-        console.log(`✅ Successfully added ${creditPackage.credits} credits to user account`);
-        
         // Redirect to create song page (home page) with 303 status to force GET method
         const origin = request.nextUrl.origin;
         return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
       } else {
-        console.log(`⚠️ Payment status is not SUCCESS: ${detailData.paymentStatus}`);
         const origin = request.nextUrl.origin;
         return NextResponse.redirect(`${origin}/?payment=failed`, { status: 303 });
       }

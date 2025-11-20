@@ -37,23 +37,18 @@ export function useSongPolling({ song, onSongUpdate }: UseSongPollingProps) {
     }
 
     setIsPolling(true);
-    console.log('🔄 Starting to poll for song status. TaskId:', song.taskId);
 
     let pollCount = 0;
     const maxPolls = 15; // 5 minutes max (15 * 20 seconds)
 
     const pollInterval = setInterval(async () => {
       pollCount++;
-      console.log(`🔍 Polling attempt ${pollCount}/${maxPolls}...`);
 
       try {
         const response = await axios.get(`/api/check-song-status?taskId=${song.taskId}`);
         const data = response.data;
 
-        console.log('📥 Poll response:', data);
-
         if (data.status === 'complete' && data.variations) {
-          console.log('✅ Songs are ready!');
           clearInterval(pollInterval);
           setIsPolling(false);
 

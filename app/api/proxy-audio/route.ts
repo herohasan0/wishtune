@@ -12,8 +12,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('🎵 Proxying audio from:', audioUrl);
-
     // Fetch the audio file
     const response = await fetch(audioUrl, {
       headers: {
@@ -31,8 +29,6 @@ export async function GET(request: NextRequest) {
 
     // Get the audio data
     const audioBuffer = await response.arrayBuffer();
-    
-    console.log('✅ Audio fetched successfully, size:', audioBuffer.byteLength, 'bytes');
 
     // Return the audio with proper headers
     return new NextResponse(audioBuffer, {

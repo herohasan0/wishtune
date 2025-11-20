@@ -77,7 +77,6 @@ export default function BuyCreditsPage() {
     queryKey: ['packages'],
     queryFn: async () => {
       const response = await axios.get<{ packages: CreditPackage[] }>('/api/packages');
-      console.log('📦 Packages fetched:', response.data);
       return response.data;
     },
     enabled: !!session?.user,
@@ -95,19 +94,49 @@ export default function BuyCreditsPage() {
     }
   };
 
+  // Payment type definitions
+  interface PaymentBuyer {
+    id: string;
+    name: string;
+    surname: string;
+    identityNumber: string;
+    email: string;
+    gsmNumber: string;
+    registrationAddress: string;
+    city: string;
+    country: string;
+  }
+
+  interface PaymentAddress {
+    address: string;
+    contactName: string;
+    city: string;
+    country: string;
+  }
+
+  interface PaymentBasketItem {
+    id: string;
+    price: number;
+    name: string;
+    category1: string;
+    itemType: string;
+  }
+
+  interface PaymentData {
+    locale: string;
+    price: number;
+    paidPrice: number;
+    currency: string;
+    callbackUrl: string;
+    buyer: PaymentBuyer;
+    shippingAddress: PaymentAddress;
+    billingAddress: PaymentAddress;
+    basketItems: PaymentBasketItem[];
+  }
+
   // Initialize payment form mutation
   const initializeFormMutation = useMutation({
-    mutationFn: async (data: {
-      locale: string;
-      price: number;
-      paidPrice: number;
-      currency: string;
-      callbackUrl: string;
-      buyer: any;
-      shippingAddress: any;
-      billingAddress: any;
-      basketItems: any[];
-    }) => {
+    mutationFn: async (data: PaymentData) => {
       const response = await axios.post<{ checkoutFormContent: string }>("/api/initialize-form", data);
       return response.data;
     },
@@ -329,7 +358,7 @@ export default function BuyCreditsPage() {
           </div>
           
           {/* Trust Indicators */}
-          <div className="rounded-lg border border-[#F3E4D6] bg-gradient-to-r from-[#FFF5EB] to-white p-6 shadow-sm">
+          <div className="rounded-lg border border-[#F3E4D6] bg-linear-to-r from-[#FFF5EB] to-white p-6 shadow-sm">
             <div className="flex flex-col items-center gap-4 text-center">
               {/* Security Badge */}
               <div className="flex items-center gap-2 text-[#2F1E14]">
@@ -438,7 +467,7 @@ export default function BuyCreditsPage() {
                 key={pkg.id}
                 className={`relative rounded-lg border p-6 shadow-sm transition-all ${
                   pkg.popular
-                    ? 'border-[#F18A24] bg-gradient-to-br from-[#FFF5EB] to-white ring-2 ring-[#F18A24]/20'
+                    ? 'border-[#F18A24] bg-linear-to-br from-[#FFF5EB] to-white ring-2 ring-[#F18A24]/20'
                     : 'border-[#F3E4D6] bg-white/95'
                 }`}
               >
@@ -489,7 +518,7 @@ export default function BuyCreditsPage() {
         )}
 
         {/* Contact Section */}
-        <div className="rounded-lg border border-[#F3E4D6] bg-gradient-to-r from-[#FFF5EB] to-white p-6 shadow-sm">
+        <div className="rounded-lg border border-[#F3E4D6] bg-linear-to-r from-[#FFF5EB] to-white p-6 shadow-sm">
           <div className="text-center">
             <p className="text-sm text-[#8F6C54] mb-2">
               Need more credits or have questions?
@@ -512,13 +541,13 @@ export default function BuyCreditsPage() {
           <h3 className="mb-4 text-lg font-semibold text-[#2F1E14]">How Credits Work</h3>
           <div className="space-y-3 text-sm text-[#8F6C54]">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#F18A24]/20 text-[#F18A24]">
+              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#F18A24]/20 text-[#F18A24]">
                 <span className="text-xs">1</span>
               </div>
               <p>Each credit allows you to create one song with multiple variations</p>
             </div>
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#F18A24]/20 text-[#F18A24]">
+              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#F18A24]/20 text-[#F18A24]">
                 <span className="text-xs">2</span>
               </div>
               <p>Credits never expire - use them whenever you want</p>
