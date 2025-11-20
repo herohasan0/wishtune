@@ -8,7 +8,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
   ],
-  url: process.env.NEXTAUTH_URL,
   pages: {
     signIn: '/',
   },
@@ -36,5 +35,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   secret: process.env.AUTH_SECRET,
+  trustHost: true, // Required for production deployments
 })
 
