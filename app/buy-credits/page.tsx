@@ -178,6 +178,7 @@ export default function BuyCreditsPage() {
       price: plan.price,
       paidPrice: plan.price,
       currency: isTurkey ? "TRY" : "USD",
+      conversationId: session?.user?.id,
       callbackUrl: `${window.location.origin}/api/payment-callback`,
       buyer: {
         id: session?.user?.email?.replace(/[^a-zA-Z0-9]/g, '') || `BY${Date.now()}`,

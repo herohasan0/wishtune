@@ -112,9 +112,14 @@ export async function POST(request: NextRequest) {
       if (detailData.paymentStatus === 'SUCCESS') {
         // Get user session
         const session = await auth();
+        const conversationId = detailData.conversationId as string | undefined;
         
-        if (!session?.user?.id) {
-          console.error('❌ No user session found');
+        // Use session user ID or fallback to conversationId (which we set to user ID in payment init)
+        const userId = session?.user?.id || conversationId;
+        const userEmail = session?.user?.email;
+        
+        if (!userId) {
+          console.error('❌ No user session or conversation ID found');
           // Return HTML page that redirects to login, then back to home
           return new NextResponse(
             `<!DOCTYPE html>
@@ -175,19 +180,20 @@ export async function POST(request: NextRequest) {
             // Since addPaidCredits doesn't take a transaction object, we'll implement the logic here directly
             // to ensure atomicity with the transaction record.
             
-            const userCreditRef = db.collection('userCredits').doc(session.user.id);
+            const userCreditRef = db.collection('userCredits').doc(userId);
             const userCreditSnap = await t.get(userCreditRef);
             
             if (userCreditSnap.exists) {
               t.update(userCreditRef, {
                 paidCredits: FieldValue.increment(creditPackage.credits),
                 updatedAt: FieldValue.serverTimestamp(),
-                email: session.user.email || userCreditSnap.data()?.email
+                // Only update email if we have it from session
+                ...(userEmail ? { email: userEmail } : {})
               });
             } else {
               t.set(userCreditRef, {
-                userId: session.user.id,
-                email: session.user.email || null,
+                userId: userId,
+                email: userEmail || null,
                 freeSongsUsed: 0,
                 paidCredits: creditPackage.credits,
                 totalSongsCreated: 0,
@@ -200,7 +206,7 @@ export async function POST(request: NextRequest) {
             t.set(transactionRef, {
               status: 'SUCCESS',
               itemId: itemId,
-              userId: session.user.id,
+              userId: userId,
               credits: creditPackage.credits,
               timestamp: FieldValue.serverTimestamp()
             });
@@ -307,14 +313,29 @@ export async function GET(request: NextRequest) {
         itemTransactions?: Array<{ itemId?: string }>;
         [key: string]: unknown;
       };
+
+      console.log('detailData', detailData);
+      console.log('queryParams', queryParams);
+
+      console.log('detailData.paymentStatus', detailData.paymentStatus);
       
       // Check if payment was successful
       if (detailData.paymentStatus === 'SUCCESS') {
         // Get user session
         const session = await auth();
+        const conversationId = detailData.conversationId as string | undefined;
         
-        if (!session?.user?.id) {
-          console.error('❌ No user session found');
+        // Use session user ID or fallback to conversationId
+        const userId = session?.user?.id || conversationId;
+        const userEmail = session?.user?.email;
+
+        console.log('session', session);
+        console.log('conversationId', conversationId);
+        console.log('userId', userId);
+        console.log('userEmail', userEmail);
+        
+        if (!userId) {
+          console.error('❌ No user session or conversation ID found');
           const origin = request.nextUrl.origin;
           return NextResponse.redirect(`${origin}/?error=no_session`, { status: 303 });
         }
@@ -344,9 +365,9 @@ export async function GET(request: NextRequest) {
         
         // Add credits to user account
         const addCreditsResult = await addPaidCredits(
-          session.user.id,
+          userId,
           creditPackage.credits,
-          session.user.email || undefined
+          userEmail || undefined
         );
         
         if (!addCreditsResult.success) {

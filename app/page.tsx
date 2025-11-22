@@ -36,6 +36,7 @@ export default function Home() {
   const [songsCreatedCount, setSongsCreatedCount] = useState<number>(0);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
 
+  console.log('session', session);
   // Fetch credits using React Query
   const {
     data: creditsData,
