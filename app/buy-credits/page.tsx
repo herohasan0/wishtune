@@ -171,11 +171,13 @@ export default function BuyCreditsPage() {
     const name = nameParts[0] || '';
     const surname = nameParts.slice(1).join(' ') || name; // Use first name as surname if only one word
     
+    const isTurkey = formData.country.trim().toLowerCase() === 'turkey';
+    
     return {
-      locale: "en",
+      locale: isTurkey ? "tr" : "en",
       price: plan.price,
       paidPrice: plan.price,
-      currency: "USD",
+      currency: isTurkey ? "TRY" : "USD",
       callbackUrl: `${window.location.origin}/api/payment-callback`,
       buyer: {
         id: session?.user?.email?.replace(/[^a-zA-Z0-9]/g, '') || `BY${Date.now()}`,
