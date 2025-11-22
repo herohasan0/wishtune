@@ -7,7 +7,7 @@ import Footer from '../components/Footer';
 
 export default function AboutPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#FFF5EB] px-4 py-6 text-[#3F2A1F] sm:py-10">
+    <main className="relative min-h-screen px-4 py-6 text-[#3F2A1F] sm:py-10">
       <BackgroundBlobs />
       <Header />
 
@@ -155,14 +155,14 @@ export default function AboutPage() {
               Have questions, feedback, or ideas? We'd love to hear from you!
             </p>
             <a
-              href="mailto:wishtune@info.com"
+              href="mailto:help@heroicsoft.com"
               className="inline-flex items-center gap-2 text-base font-semibold text-[#F18A24] hover:text-[#E07212] transition-colors"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                 <polyline points="22,6 12,13 2,6"/>
               </svg>
-              wishtune@info.com
+              help@heroicsoft.com
             </a>
           </div>
         </div>

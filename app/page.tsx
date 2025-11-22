@@ -224,7 +224,7 @@ export default function Home() {
   const showFormLoading = session?.user && creditsLoading;
 
   return (
-    <main className="flex min-h-screen flex-col bg-[#FDF7F0] text-[#2F1E14]">
+    <main className="flex min-h-screen flex-col text-[#2F1E14]">
       <Header />
 
       <section className="flex flex-1 flex-col px-4 pb-16 pt-8 sm:px-6">
@@ -350,7 +350,11 @@ export default function Home() {
           </div>
 
           {showForm && !showFormLoading && (
-            <CreateButton isLoading={createSongMutation.isPending} onClick={handleCreate} />
+            <CreateButton 
+              isLoading={createSongMutation.isPending} 
+              onClick={handleCreate}
+              creditCost={session?.user && credits ? (credits.freeSongsRemaining > 0 ? 0 : 1) : undefined}
+            />
           )}
 
           <Footer />

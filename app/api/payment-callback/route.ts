@@ -4,6 +4,8 @@ import { generateAuthorizationForPostRequest } from '../../utils/encryp';
 import { auth } from '@/auth';
 import { addPaidCredits } from '@/lib/credits';
 import { getCreditPackageById } from '@/lib/packages';
+import { db } from '@/lib/firebase';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * Payment callback endpoint for iyzico
@@ -157,22 +159,62 @@ export async function POST(request: NextRequest) {
           return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
         }
         
-        // Add credits to user account
-        const addCreditsResult = await addPaidCredits(
-          session.user.id,
-          creditPackage.credits,
-          session.user.email || undefined
-        );
+        // [FIX] Idempotency Check & Atomic Transaction
+        const transactionRef = db.collection('transactions').doc(token);
         
-        if (!addCreditsResult.success) {
-          console.error('❌ Failed to add credits:', addCreditsResult.error);
+        try {
+          await db.runTransaction(async (t) => {
+            const doc = await t.get(transactionRef);
+            
+            if (doc.exists) {
+              console.log('Transaction already processed:', token);
+              return; // Already processed, do nothing
+            }
+
+            // Add credits logic inline or call helper if it supports transaction
+            // Since addPaidCredits doesn't take a transaction object, we'll implement the logic here directly
+            // to ensure atomicity with the transaction record.
+            
+            const userCreditRef = db.collection('userCredits').doc(session.user.id);
+            const userCreditSnap = await t.get(userCreditRef);
+            
+            if (userCreditSnap.exists) {
+              t.update(userCreditRef, {
+                paidCredits: FieldValue.increment(creditPackage.credits),
+                updatedAt: FieldValue.serverTimestamp(),
+                email: session.user.email || userCreditSnap.data()?.email
+              });
+            } else {
+              t.set(userCreditRef, {
+                userId: session.user.id,
+                email: session.user.email || null,
+                freeSongsUsed: 0,
+                paidCredits: creditPackage.credits,
+                totalSongsCreated: 0,
+                createdAt: FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp(),
+              });
+            }
+
+            // Mark transaction as processed
+            t.set(transactionRef, {
+              status: 'SUCCESS',
+              itemId: itemId,
+              userId: session.user.id,
+              credits: creditPackage.credits,
+              timestamp: FieldValue.serverTimestamp()
+            });
+          });
+          
+          // Redirect to create song page (home page) with 303 status to force GET method
           const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=credit_add_failed`, { status: 303 });
+          return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
+          
+        } catch (error) {
+          console.error('❌ Transaction failed:', error);
+          const origin = request.nextUrl.origin;
+          return NextResponse.redirect(`${origin}/?error=transaction_failed`, { status: 303 });
         }
-        
-        // Redirect to create song page (home page) with 303 status to force GET method
-        const origin = request.nextUrl.origin;
-        return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
       } else {
         // Redirect to home page with error
         const origin = request.nextUrl.origin;

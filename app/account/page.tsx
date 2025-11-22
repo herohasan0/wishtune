@@ -111,7 +111,7 @@ export default function AccountPage() {
 
   if (status === 'loading' || creditsLoading) {
     return (
-      <main className="relative min-h-screen overflow-hidden bg-[#FFF5EB] px-4 py-6 text-[#3F2A1F] sm:py-10">
+      <main className="relative min-h-screen px-4 py-6 text-[#3F2A1F] sm:py-10">
         <BackgroundBlobs />
         <Header />
         <div className="relative z-10 mx-auto flex w-full max-w-3xl items-center justify-center py-20">
@@ -128,7 +128,7 @@ export default function AccountPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#FFF5EB] px-4 py-6 text-[#3F2A1F] sm:py-10">
+    <main className="relative min-h-screen px-4 py-6 text-[#3F2A1F] sm:py-10">
       <BackgroundBlobs />
       <Header />
 
@@ -282,6 +282,23 @@ export default function AccountPage() {
                           <span className="flex items-center gap-1">
                             📅 {new Date(song.createdAt).toLocaleDateString()}
                           </span>
+                          {(() => {
+                            const createdAt = new Date(song.createdAt);
+                            const expirationDate = new Date(createdAt);
+                            expirationDate.setDate(createdAt.getDate() + 15);
+                            const now = new Date();
+                            const diffTime = expirationDate.getTime() - now.getTime();
+                            const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            
+                            if (daysRemaining > 0) {
+                              return (
+                                <span className="flex items-center gap-1 text-orange-600 font-medium">
+                                  ⚠️ {daysRemaining} Days to expire
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </div>
 
@@ -315,17 +332,29 @@ export default function AccountPage() {
                             });
                           };
 
-                          const handleDownload = () => {
+                          const handleDownload = async () => {
                             if (!variation.audioUrl) {
                               alert('Audio not available for download yet.');
                               return;
                             }
-                            const fileName = `${song.name}-${variation.title}.mp3`;
-                            const link = document.createElement('a');
-                            link.href = variation.audioUrl;
-                            link.download = fileName;
-                            link.target = '_blank';
-                            link.click();
+                            
+                            try {
+                              const response = await fetch(variation.audioUrl);
+                              const blob = await response.blob();
+                              const url = window.URL.createObjectURL(blob);
+                              const fileName = `${song.name}-${variation.title}.mp3`;
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = fileName;
+                              document.body.appendChild(link);
+                              link.click();
+                              link.remove();
+                              window.URL.revokeObjectURL(url);
+                            } catch (error) {
+                              console.error('Download failed:', error);
+                              // Fallback to opening in new tab if fetch fails
+                              window.open(variation.audioUrl, '_blank');
+                            }
                           };
 
                           return (

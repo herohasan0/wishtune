@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --color-background: #FDFBF7;
+  --color-background: #FFF5EB;
   --color-main-text: #3C354E;
   --color-primary: #7C5DFA;
   --color-accent-1: #FAD2B1;
@@ -10,7 +10,7 @@
 }
 
 @theme {
-  --color-background: #FDFBF7;
+  --color-background: #FFF5EB;
   --color-main-text: #3C354E;
   --color-primary: #7C5DFA;
   --color-accent-1: #FAD2B1;

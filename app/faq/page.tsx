@@ -81,15 +81,19 @@ export default function FAQPage() {
     },
     {
       question: 'Can I use the songs commercially?',
-      answer: 'Songs created on WishTune are for personal use. For commercial use, please contact us at wishtune@info.com to discuss licensing options.'
+      answer: 'Songs created on WishTune are for personal use. For commercial use, please contact us at help@heroicsoft.com to discuss licensing options.'
     },
     {
       question: 'What happens if my song creation fails?',
-      answer: 'If a song creation fails, please contact our support team at wishtune@info.com. We\'ll investigate the issue and, if necessary, restore your credit or provide a refund.'
+      answer: 'If a song creation fails, please contact our support team at help@heroicsoft.com. We\'ll investigate the issue and, if necessary, restore your credit or provide a refund.'
     },
     {
       question: 'How do I contact support?',
-      answer: 'You can reach us at wishtune@info.com for any questions, issues, or feedback. We\'re here to help and typically respond within 24-48 hours.'
+      answer: 'You can reach us at help@heroicsoft.com for any questions, issues, or feedback. We\'re here to help and typically respond within 24-48 hours.'
+    },
+    {
+      question: 'Who owns WishTune?',
+      answer: 'WishTune is proudly owned and operated by heroicsoft.'
     }
   ];
 
@@ -98,7 +102,7 @@ export default function FAQPage() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#FFF5EB] px-4 py-6 text-[#3F2A1F] sm:py-10">
+    <main className="relative min-h-screen px-4 py-6 text-[#3F2A1F] sm:py-10">
       <BackgroundBlobs />
       <Header />
 
@@ -167,7 +171,7 @@ export default function FAQPage() {
               Can't find the answer you're looking for? We're here to help!
             </p>
             <a
-              href="mailto:wishtune@info.com"
+              href="mailto:help@heroicsoft.com"
               className="inline-flex items-center gap-2 rounded-lg bg-[#F18A24] px-6 py-3 text-base font-semibold text-white hover:bg-[#E07212] transition-colors"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

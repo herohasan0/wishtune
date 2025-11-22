@@ -74,12 +74,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={rubik.variable}>
+    <html lang="en" className="bg-[#FFF5EB]">
+      <body className={`${rubik.variable}`}>
         <GoogleTagManager />
         <QueryClientProvider>
           <SessionProvider>{children}</SessionProvider>
         </QueryClientProvider>
+        <div className="py-6 text-center text-xs text-[#A78973]/60">
+          © {new Date().getFullYear()} heroicsoft. All rights reserved.
+        </div>
       </body>
     </html>
   );

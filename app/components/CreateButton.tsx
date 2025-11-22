@@ -1,9 +1,24 @@
 interface CreateButtonProps {
   isLoading: boolean;
   onClick: () => void;
+  creditCost?: number;
 }
 
-export default function CreateButton({ isLoading, onClick }: CreateButtonProps) {
+export default function CreateButton({ isLoading, onClick, creditCost }: CreateButtonProps) {
+  const getButtonText = () => {
+    if (isLoading) return null;
+    
+    let text = 'Create My Song!';
+    if (creditCost !== undefined) {
+      if (creditCost === 0) {
+        text += ' ✨ Free';
+      } else {
+        text += ` 🪙 ${creditCost} Credit${creditCost > 1 ? 's' : ''}`;
+      }
+    }
+    return text;
+  };
+
   return (
     <button
       onClick={onClick}
@@ -32,7 +47,7 @@ export default function CreateButton({ isLoading, onClick }: CreateButtonProps) 
           Creating...
         </>
       ) : (
-        'Create My Song!'
+        getButtonText()
       )}
     </button>
   );
