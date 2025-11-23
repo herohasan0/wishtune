@@ -7,9 +7,37 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { getCreditPackageById } from '@/lib/packages';
 
 /**
+ * Helper to determine the correct redirect origin.
+ * Prioritizes environment variables to avoid 0.0.0.0 in production.
+ */
+function getRedirectOrigin(request: NextRequest): string {
+  // 1. Check explicit app URL env var (Best for production)
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  }
+
+  // 2. Check Vercel URL (Automatically set by Vercel)
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  // 3. Check Host header (Good fallback)
+  const host = request.headers.get('host');
+  if (host) {
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    return `${protocol}://${host}`;
+  }
+
+  // 4. Fallback to nextUrl.origin (Might be 0.0.0.0 in some containers)
+  return request.nextUrl.origin;
+}
+
+/**
  * Shared payment processing logic for both POST and GET callbacks
  */
 async function processPayment(request: NextRequest, token: string, queryParams: Record<string, string>, body: any) {
+  const origin = getRedirectOrigin(request);
+
   try {
     // 1. Idempotency Check: Check if transaction already exists
     const transactionRef = db.collection('transactions').doc(token);
@@ -19,7 +47,6 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
       const data = transactionDoc.data();
       if (data?.status === 'SUCCESS') {
         console.log('✅ Transaction already processed successfully:', token);
-        const origin = request.nextUrl.origin;
         return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
       }
     }
@@ -65,7 +92,6 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
 
     if (detailData.paymentStatus !== 'SUCCESS') {
       console.error('❌ Payment failed at Iyzico:', detailData);
-      const origin = request.nextUrl.origin;
       return NextResponse.redirect(`${origin}/?payment=failed`, { status: 303 });
     }
 
@@ -99,7 +125,6 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
       console.error('❌ Critical: Could not recover userId from session, conversationId, or paymentSessions');
       console.error('Session:', session);
       console.error('ConversationId:', conversationId);
-      const origin = request.nextUrl.origin;
       return NextResponse.redirect(`${origin}/?error=session_lost`, { status: 303 });
     }
 
@@ -109,14 +134,12 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
     
     if (!itemId) {
       console.error('❌ No itemId found in transactions');
-      const origin = request.nextUrl.origin;
       return NextResponse.redirect(`${origin}/?error=no_item_id`, { status: 303 });
     }
     
     const creditPackage = await getCreditPackageById(itemId);
     if (!creditPackage) {
       console.error(`❌ Package not found for itemId: ${itemId}`);
-      const origin = request.nextUrl.origin;
       return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
     }
 
@@ -162,12 +185,10 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
       });
       
       console.log(`✅ Successfully processed payment for user ${userId}, added ${creditPackage.credits} credits`);
-      const origin = request.nextUrl.origin;
       return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
 
     } catch (error) {
       console.error('❌ Database transaction failed:', error);
-      const origin = request.nextUrl.origin;
       return NextResponse.redirect(`${origin}/?error=transaction_failed`, { status: 303 });
     }
 
@@ -176,7 +197,6 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
     if (axios.isAxiosError(error)) {
         console.error('Axios error details:', error.response?.data);
     }
-    const origin = request.nextUrl.origin;
     return NextResponse.redirect(`${origin}/?error=processing_failed`, { status: 303 });
   }
 }
