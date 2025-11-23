@@ -7,13 +7,14 @@ interface SongRequest {
   name: string;
   celebrationType: string;
   musicStyle: string;
+  duration: number;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     const body: SongRequest = await request.json();
-    const { name, celebrationType, musicStyle } = body;
+    const { name, celebrationType, musicStyle, duration = 60 } = body;
 
     if (!name || !celebrationType || !musicStyle) {
       return NextResponse.json(
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Construct prompt (max 500 chars for non-custom mode)
-    const prompt = `A ${musicStyle} ${celebrationType} song for ${name}. Start with "${name}" in the first line. Uplifting, at least 50 seconds. Include ${name}'s name throughout. Full track with verse, chorus, bridge. ${musicStyle} style.`;
+    const prompt = `A ${musicStyle} ${celebrationType} song for ${name}. Start with "${name}" in the first line. Uplifting, ${duration} seconds long. Include ${name}'s name throughout. Full track with verse, chorus, bridge. ${musicStyle} style.`;
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const callBackUrl = `${baseUrl}/api/suno-callback${session?.user?.id ? `?userId=${session.user.id}` : ''}`;

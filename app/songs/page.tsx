@@ -110,23 +110,47 @@ function SongsPageContent() {
     return setupPageExitTracking('songs_page');
   }, []);
 
-  const handleShare = async (songId: string, variationId: string) => {
+  const handleShare = async (songId: string, variationId: string, audioUrl?: string, songName?: string) => {
     trackButtonClick('share_song', '/songs');
     const shareUrl = `${window.location.origin}/songs/${songId}/${variationId}`;
-    
-    if (navigator.share) {
+
+    // Check if we can share files (for Instagram/social media)
+    if (navigator.share && audioUrl) {
+      try {
+        // Try to share the audio file directly (works on mobile for Instagram)
+        const response = await fetch(audioUrl);
+        const blob = await response.blob();
+        const fileName = `${songName || 'WishTune'}-song.mp3`;
+        const file = new File([blob], fileName, { type: 'audio/mpeg' });
+
+        // Check if file sharing is supported
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: `${songName || 'WishTune'} - Custom Song`,
+            text: 'Check out this custom song I created with WishTune!',
+            files: [file],
+          });
+          return;
+        }
+      } catch {
+        // File sharing failed, fall through to URL sharing
+      }
+
+      // Fallback to URL sharing
       try {
         await navigator.share({
           title: 'Check out my WishTune song!',
+          text: 'Listen to this custom song I created!',
           url: shareUrl,
         });
+        return;
       } catch {
         // User cancelled or error occurred
-        copyToClipboard(shareUrl, variationId);
       }
-    } else {
-      copyToClipboard(shareUrl, variationId);
     }
+
+    // Final fallback: copy to clipboard
+    copyToClipboard(shareUrl, variationId);
   };
 
   const copyToClipboard = (text: string, variationId: string) => {
@@ -136,22 +160,32 @@ function SongsPageContent() {
     });
   };
 
-  const handleDownload = (songName: string, variationTitle: string, audioUrl?: string) => {
+  const handleDownload = async (songName: string, variationTitle: string, audioUrl?: string) => {
     trackButtonClick('download_song', '/songs');
-    
+
     if (!audioUrl) {
       alert('Audio not available for download yet.');
       return;
     }
 
     const fileName = `${songName}-${variationTitle}.mp3`;
-    
-    // Create a link and trigger download
-    const link = document.createElement('a');
-    link.href = audioUrl;
-    link.download = fileName;
-    link.target = '_blank';
-    link.click();
+
+    try {
+      // Fetch the audio file and create a blob for download
+      const response = await fetch(audioUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      // Fallback to opening in new tab if fetch fails
+      window.open(audioUrl, '_blank');
+    }
   };
 
   const handlePlayStateChange = (variationId: string, isPlaying: boolean) => {

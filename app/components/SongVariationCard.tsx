@@ -20,7 +20,7 @@ interface SongVariationCardProps {
   currentlyPlayingId: string | null;
   onPlayStateChange: (variationId: string, isPlaying: boolean) => void;
   onDownload: (songName: string, variationTitle: string, audioUrl?: string) => void;
-  onShare: (songId: string, variationId: string) => void;
+  onShare: (songId: string, variationId: string, audioUrl?: string, songName?: string) => void;
   songId: string;
 }
 
@@ -148,7 +148,7 @@ export default function SongVariationCard({
         </button>
 
         <button
-          onClick={() => onShare(songId, variation.id)}
+          onClick={() => onShare(songId, variation.id, variation.audioUrl, songName)}
           className={`flex h-14 w-14 items-center justify-center rounded-full border-2 transition-all ${
             copiedId === variation.id
               ? 'border-[#7AC47A] bg-[#E6F8E6] text-[#2F8F2F]'

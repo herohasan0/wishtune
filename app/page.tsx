@@ -10,6 +10,7 @@ import HeroSection from './components/HeroSection';
 import NameInput from './components/NameInput';
 import CelebrationTypeSelector from './components/CelebrationTypeSelector';
 import MusicStyleSelector from './components/MusicStyleSelector';
+import DurationSelector from './components/DurationSelector';
 import SignUpPrompt from './components/SignUpPrompt';
 import SignInPrompt from './components/SignInPrompt';
 import CreateButton from './components/CreateButton';
@@ -32,6 +33,7 @@ export default function Home() {
   const [name, setName] = useState('');
   const [celebrationType, setCelebrationType] = useState('birthday');
   const [selectedStyle, setSelectedStyle] = useState('pop');
+  const [selectedDuration, setSelectedDuration] = useState(60);
   const [nameError, setNameError] = useState(false);
   const [songsCreatedCount, setSongsCreatedCount] = useState<number>(0);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
@@ -151,13 +153,21 @@ export default function Home() {
     { id: 'classical', label: 'Classical', description: 'Classical & Elegant', icon: '🎻' },
   ];
 
+  const durationOptions = [
+    { id: 30, label: '30 sec', description: 'Quick', icon: '⚡' },
+    { id: 60, label: '60 sec', description: 'Standard', icon: '⏱️' },
+    { id: 90, label: '90 sec', description: 'Extended', icon: '🎼' },
+    { id: 120, label: '2 min', description: 'Full', icon: '🎶' },
+  ];
+
   // Create song mutation
   const createSongMutation = useMutation({
-    mutationFn: async (data: { name: string; celebrationType: string; musicStyle: string }) => {
+    mutationFn: async (data: { name: string; celebrationType: string; musicStyle: string; duration: number }) => {
       const response = await axios.post('/api/create-song', {
         name: data.name.trim(),
         celebrationType: data.celebrationType,
         musicStyle: data.musicStyle,
+        duration: data.duration,
       });
       return response.data;
     },
@@ -208,12 +218,14 @@ export default function Home() {
       trackSongCreationStep('create_clicked', {
         celebration_type: celebrationType,
         music_style: selectedStyle,
+        duration: selectedDuration,
       });
-      
+
       createSongMutation.mutate({
         name: name.trim(),
         celebrationType: celebrationType,
         musicStyle: selectedStyle,
+        duration: selectedDuration,
       });
     }
   };
@@ -341,6 +353,17 @@ export default function Home() {
                   onSelect={(style) => {
                     setSelectedStyle(style);
                     trackSongCreationStep('style_selected', { music_style: style });
+                  }}
+                />
+
+                <Divider />
+
+                <DurationSelector
+                  durations={durationOptions}
+                  selectedDuration={selectedDuration}
+                  onSelect={(duration) => {
+                    setSelectedDuration(duration);
+                    trackSongCreationStep('duration_selected', { duration: duration });
                   }}
                 />
               </>

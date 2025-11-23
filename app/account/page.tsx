@@ -285,7 +285,7 @@ export default function AccountPage() {
                           {(() => {
                             const createdAt = new Date(song.createdAt);
                             const expirationDate = new Date(createdAt);
-                            expirationDate.setDate(createdAt.getDate() + 15);
+                            expirationDate.setDate(createdAt.getDate() + 14);
                             const now = new Date();
                             const diffTime = expirationDate.getTime() - now.getTime();
                             const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -310,19 +310,43 @@ export default function AccountPage() {
                           const shareUrl = `${window.location.origin}/songs/${song.id}/${variation.id}`;
 
                           const handleShare = async () => {
-                            if (navigator.share) {
+                            // Check if we can share files (for Instagram/social media)
+                            if (navigator.share && variation.audioUrl) {
+                              try {
+                                // Try to share the audio file directly (works on mobile for Instagram)
+                                const response = await fetch(variation.audioUrl);
+                                const blob = await response.blob();
+                                const fileName = `${song.name}-${variation.title}.mp3`;
+                                const file = new File([blob], fileName, { type: 'audio/mpeg' });
+
+                                // Check if file sharing is supported
+                                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                                  await navigator.share({
+                                    title: `${song.name} - Custom Song`,
+                                    text: 'Check out this custom song I created with WishTune!',
+                                    files: [file],
+                                  });
+                                  return;
+                                }
+                              } catch {
+                                // File sharing failed, fall through to URL sharing
+                              }
+
+                              // Fallback to URL sharing
                               try {
                                 await navigator.share({
                                   title: `Check out ${song.name} - ${variation.title}!`,
+                                  text: 'Listen to this custom song I created!',
                                   url: shareUrl,
                                 });
+                                return;
                               } catch {
                                 // User cancelled or error occurred
-                                copyToClipboard(shareUrl, variation.id);
                               }
-                            } else {
-                              copyToClipboard(shareUrl, variation.id);
                             }
+
+                            // Final fallback: copy to clipboard
+                            copyToClipboard(shareUrl, variation.id);
                           };
 
                           const copyToClipboard = (text: string, variationId: string) => {
