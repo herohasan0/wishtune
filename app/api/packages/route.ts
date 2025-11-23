@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       packages,
     }, { status: 200 });
   } catch (error) {
-    console.error('❌ Error fetching credit packages:', error);
+
     return NextResponse.json(
       { 
         error: 'Failed to fetch credit packages',

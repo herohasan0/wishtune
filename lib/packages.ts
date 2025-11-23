@@ -37,7 +37,6 @@ export async function getCreditPackages(): Promise<CreditPackage[]> {
       // If orderBy fails (likely due to missing index), fetch without orderBy
       const error = orderByError as { code?: number; message?: string };
       if (error?.code === 9 || error?.message?.includes('index')) {
-        console.warn('⚠️ Composite index not found, fetching without orderBy');
         const packagesSnapshot = await db
           .collection(PACKAGES_COLLECTION)
           .where('active', '==', true)
@@ -54,7 +53,6 @@ export async function getCreditPackages(): Promise<CreditPackage[]> {
       throw orderByError;
     }
   } catch (error: unknown) {
-    console.error('❌ Error fetching credit packages:', error);
     
     // Final fallback: fetch all packages and filter in memory
     try {
@@ -75,7 +73,6 @@ export async function getCreditPackages(): Promise<CreditPackage[]> {
       const sorted = activePackages.sort((a, b) => a.price - b.price);
       return sorted;
     } catch (fallbackError) {
-      console.error('❌ Error fetching credit packages (final fallback):', fallbackError);
       // Return empty array instead of throwing to prevent page crash
       return [];
     }
@@ -101,7 +98,6 @@ export async function getCreditPackageById(packageId: string): Promise<CreditPac
       ...packageDoc.data(),
     } as CreditPackage;
   } catch (error) {
-    console.error('Error fetching credit package:', error);
     throw error;
   }
 }

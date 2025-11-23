@@ -59,19 +59,16 @@ export function useSongPolling({ song, onSongUpdate }: UseSongPollingProps) {
             variations: data.variations,
           });
         } else if (data.status === 'failed') {
-          console.error('❌ Song generation failed:', data.error);
           clearInterval(pollInterval);
           setIsPolling(false);
           alert(`Song generation failed: ${data.error}`);
         } else if (pollCount >= maxPolls) {
-          console.warn('⏰ Polling timeout reached');
           clearInterval(pollInterval);
           setIsPolling(false);
           alert('Song generation is taking longer than expected. Please try again later.');
         }
         // else: still pending, continue polling
       } catch (error) {
-        console.error('❌ Error polling song status:', error);
         // Don't stop polling on network errors, just log them
       }
     }, 20000); // Poll every 20 seconds

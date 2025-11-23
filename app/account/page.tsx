@@ -351,7 +351,6 @@ export default function AccountPage() {
                               link.remove();
                               window.URL.revokeObjectURL(url);
                             } catch (error) {
-                              console.error('Download failed:', error);
                               // Fallback to opening in new tab if fetch fails
                               window.open(variation.audioUrl, '_blank');
                             }

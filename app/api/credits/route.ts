@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       }
     }, { status: 200 });
   } catch (error) {
-    console.error('❌ Error fetching credits:', error);
+
     return NextResponse.json(
       { 
         error: 'Failed to fetch credits',

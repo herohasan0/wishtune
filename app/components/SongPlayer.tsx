@@ -68,7 +68,6 @@ export default function SongPlayer({
     };
 
     const handleError = (e: ErrorEvent) => {
-      console.error('Audio playback error:', e);
       setError('Error playing audio');
       setIsPlaying(false);
       onPlayStateChange?.(false);
@@ -121,7 +120,6 @@ export default function SongPlayer({
         await audioRef.current.play();
       }
     } catch (err) {
-      console.error('Play error:', err);
       setError('Unable to play audio');
       setIsPlaying(false);
       onPlayStateChange?.(false);

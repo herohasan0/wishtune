@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      console.error('❌ Failed to fetch audio:', response.status, response.statusText);
+
       return NextResponse.json(
         { error: 'Failed to fetch audio file' },
         { status: response.status }
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('❌ Error proxying audio:', error);
+
     return NextResponse.json(
       { 
         error: 'An unexpected error occurred while proxying audio',

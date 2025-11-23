@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       message: 'Callback received'
     }, { status: 200 });
   } catch (error) {
-    console.error('❌ Error processing Suno AI callback:', error);
+
     return NextResponse.json(
       { 
         success: false,

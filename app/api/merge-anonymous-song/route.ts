@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error('❌ Error merging anonymous song:', error);
+
     return NextResponse.json(
       { 
         error: 'Failed to merge anonymous song',

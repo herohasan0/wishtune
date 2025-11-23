@@ -15,7 +15,6 @@ export async function POST(request: NextRequest) {
     const { name, celebrationType, musicStyle } = body;
 
     if (!name || !celebrationType || !musicStyle) {
-      console.error('❌ Missing required fields');
       return NextResponse.json(
         { error: 'Missing required fields: name, celebrationType, or musicStyle' },
         { status: 400 }
@@ -112,8 +111,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(mockSong, { status: 200 });
   } catch (error) {
-    console.error('❌ Unexpected error creating song:', error);
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
       { 
         error: 'An unexpected error occurred while creating the song',

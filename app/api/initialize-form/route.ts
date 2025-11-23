@@ -8,11 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     // Validate environment variables
     if (!process.env.IYZICO_API_KEY || !process.env.IYZICO_SECRET_KEY || !process.env.IYZICO_BASE_URL) {
-      console.error("❌ Missing Iyzico environment variables:", {
-        hasApiKey: !!process.env.IYZICO_API_KEY,
-        hasSecretKey: !!process.env.IYZICO_SECRET_KEY,
-        hasBaseUrl: !!process.env.IYZICO_BASE_URL,
-      });
+
       return Response.json(
         { 
           error: "Payment gateway configuration error",
@@ -65,7 +61,7 @@ export async function POST(request: NextRequest) {
       })),
     };
 
-    console.log("Initializing Iyzico Payment Form with data:", JSON.stringify(requestData, null, 2));
+
 
     const authorization = generateAuthorizationForPostRequest({
       apiKey: process.env.IYZICO_API_KEY,
@@ -99,16 +95,16 @@ export async function POST(request: NextRequest) {
           locale: requestData.locale,
           price: requestData.price,
         });
-        console.log(`✅ Persisted payment session for token: ${token}`);
+
       } catch (dbError) {
-        console.error("❌ Failed to persist payment session:", dbError);
+
         // We don't block the response, but this is critical for fallback
       }
     }
 
     return Response.json(response.data, { status: 200 });
   } catch (error: unknown) {
-    console.error("❌ Error initializing payment form:", error);
+
     
     // Extract meaningful error information
     const errorMessage = (error as AxiosError<any>)?.response?.data?.errorMessage || (error as Error)?.message || "Unknown error";

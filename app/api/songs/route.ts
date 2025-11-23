@@ -52,7 +52,7 @@ export async function GET() {
 
     return NextResponse.json({ songs: serializedSongs }, { status: 200 });
   } catch (error) {
-    console.error('❌ Error fetching songs:', error);
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorDetails = error instanceof Error ? {
       message: errorMessage,

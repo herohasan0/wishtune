@@ -20,7 +20,6 @@ function initializeFirebaseApp(): App {
       );
       credential = cert(serviceAccount);
     } catch (error) {
-      console.error('❌ Error loading service account JSON file:', error);
       throw new Error('Failed to load Firebase service account key file');
     }
   }

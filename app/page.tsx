@@ -36,7 +36,6 @@ export default function Home() {
   const [songsCreatedCount, setSongsCreatedCount] = useState<number>(0);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
 
-  console.log('session', session);
   // Fetch credits using React Query
   const {
     data: creditsData,
@@ -176,7 +175,6 @@ export default function Home() {
       }
     },
     onError: (error) => {
-      console.error('Error creating song:', error);
       trackFormSubmit('song_creation', false);
       trackError('song_creation_error', error instanceof Error ? error.message : 'Unknown error');
       

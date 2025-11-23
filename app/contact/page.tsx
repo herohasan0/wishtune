@@ -38,7 +38,6 @@ export default function ContactPage() {
     const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
 
     if (!serviceId || !templateId || !publicKey) {
-      console.error('EmailJS environment variables are missing');
       setSubmitStatus('error');
       setIsSubmitting(false);
       return;
@@ -67,7 +66,6 @@ export default function ContactPage() {
         // Keep email if logged in
       }));
     } catch (error) {
-      console.error('Failed to send email:', error);
       setSubmitStatus('error');
       setIsSubmitting(false);
     }

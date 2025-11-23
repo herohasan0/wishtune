@@ -159,7 +159,6 @@ export default function BuyCreditsPage() {
       setShowForm(false);
     },
     onError: (error) => {
-      console.error("Error initializing form:", error);
       alert("Failed to initialize payment. Please try again.");
     },
   });

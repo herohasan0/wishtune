@@ -137,7 +137,6 @@ export async function deductCreditForSong(userId: string, email?: string | null)
 
     return { success: true };
   } catch (error) {
-    console.error('Error deducting credit:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to deduct credit' 
@@ -179,7 +178,6 @@ export async function addPaidCredits(userId: string, amount: number, email?: str
 
     return { success: true };
   } catch (error) {
-    console.error('Error adding paid credits:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Failed to add credits' 

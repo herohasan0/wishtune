@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json(mockResponse, { status: 200 });
   } catch (error) {
-    console.error('❌ Error checking song status:', error);
     return NextResponse.json(
       { 
         error: 'An unexpected error occurred',

@@ -94,7 +94,6 @@ function SongsPageContent() {
           // Reset credit deducted flag for new song
           setCreditDeducted(false);
         } catch (error) {
-          console.error('Error parsing song data:', error);
           sessionStorage.removeItem('wishtune_new_song');
           router.push('/');
         }
@@ -206,9 +205,7 @@ function SongsPageContent() {
               if (newCount >= 2) {
                 try {
                   await saveSongCountMutation.mutateAsync(newCount);
-                } catch (error) {
-                  console.error('Error saving song count to database:', error);
-                }
+                } catch (error) {}
               }
             }
           } else {
@@ -220,7 +217,6 @@ function SongsPageContent() {
             }
           }
         } catch (error) {
-          console.error('❌ Error saving song or deducting credit:', error);
           // Reset flags on error so user can retry if needed
           isProcessingRef.current = false;
           setCreditDeducted(false);

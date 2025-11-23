@@ -46,7 +46,7 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
     if (transactionDoc.exists) {
       const data = transactionDoc.data();
       if (data?.status === 'SUCCESS') {
-        console.log('✅ Transaction already processed successfully:', token);
+
         return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
       }
     }
@@ -88,10 +88,10 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
       [key: string]: unknown;
     };
 
-    console.log('Payment Detail Data:', JSON.stringify(detailData, null, 2));
+
 
     if (detailData.paymentStatus !== 'SUCCESS') {
-      console.error('❌ Payment failed at Iyzico:', detailData);
+
       return NextResponse.redirect(`${origin}/?payment=failed`, { status: 303 });
     }
 
@@ -105,26 +105,24 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
 
     // Fallback: Check paymentSessions collection if userId is still missing
     if (!userId) {
-      console.log(`⚠️ userId missing from session and conversationId. Checking paymentSessions for token: ${token}`);
+
       try {
         const paymentSessionDoc = await db.collection('paymentSessions').doc(token).get();
         if (paymentSessionDoc.exists) {
           const sessionData = paymentSessionDoc.data();
           userId = sessionData?.userId;
           conversationId = sessionData?.conversationId; // Update conversationId if found
-          console.log(`✅ Recovered userId from paymentSessions: ${userId}`);
+
         } else {
-          console.log(`❌ No payment session found for token: ${token}`);
+
         }
       } catch (error) {
-        console.error("❌ Error fetching payment session:", error);
+
       }
     }
 
     if (!userId) {
-      console.error('❌ Critical: Could not recover userId from session, conversationId, or paymentSessions');
-      console.error('Session:', session);
-      console.error('ConversationId:', conversationId);
+
       return NextResponse.redirect(`${origin}/?error=session_lost`, { status: 303 });
     }
 
@@ -133,13 +131,13 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
     const itemId = itemTransactions[0]?.itemId;
     
     if (!itemId) {
-      console.error('❌ No itemId found in transactions');
+
       return NextResponse.redirect(`${origin}/?error=no_item_id`, { status: 303 });
     }
     
     const creditPackage = await getCreditPackageById(itemId);
     if (!creditPackage) {
-      console.error(`❌ Package not found for itemId: ${itemId}`);
+
       return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
     }
 
@@ -184,19 +182,16 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
         });
       });
       
-      console.log(`✅ Successfully processed payment for user ${userId}, added ${creditPackage.credits} credits`);
+
       return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
 
     } catch (error) {
-      console.error('❌ Database transaction failed:', error);
+
       return NextResponse.redirect(`${origin}/?error=transaction_failed`, { status: 303 });
     }
 
   } catch (error) {
-    console.error('❌ Error in processPayment:', error);
-    if (axios.isAxiosError(error)) {
-        console.error('Axios error details:', error.response?.data);
-    }
+
     return NextResponse.redirect(`${origin}/?error=processing_failed`, { status: 303 });
   }
 }
@@ -233,7 +228,7 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (error) {
-      console.error('Error reading body:', error);
+
     }
     
     const token = (body?.token as string | undefined) || queryParams?.token;
@@ -249,7 +244,7 @@ export async function POST(request: NextRequest) {
     return processPayment(request, token, queryParams, body);
 
   } catch (error) {
-    console.error('❌ Error in POST callback:', error);
+
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }

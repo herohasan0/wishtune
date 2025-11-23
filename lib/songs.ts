@@ -86,7 +86,6 @@ export async function saveSong(
 
     return { success: true };
   } catch (error) {
-    console.error('Error saving song:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to save song',
@@ -114,7 +113,6 @@ export async function getUserSongs(
       // If orderBy fails (likely due to missing index), fetch without orderBy and sort in memory
       const error = orderByError as { code?: number; message?: string };
       if (error?.code === 9 || error?.message?.includes('index')) {
-        console.warn('⚠️ Composite index not found, fetching without orderBy and sorting in memory');
         const songsSnapshot = await db
           .collection(SONGS_COLLECTION)
           .where('userId', '==', userId)
@@ -133,7 +131,6 @@ export async function getUserSongs(
       throw orderByError;
     }
   } catch (error) {
-    console.error('Error fetching user songs:', error);
     throw error;
   }
 }
@@ -151,7 +148,6 @@ export async function getSongById(songId: string): Promise<SongDocument | null> 
     
     return songDoc.data() as SongDocument;
   } catch (error) {
-    console.error('Error fetching song:', error);
     throw error;
   }
 }
