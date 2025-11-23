@@ -118,29 +118,6 @@ export async function POST(request: NextRequest) {
         const userId = session?.user?.id || conversationId;
         const userEmail = session?.user?.email;
         
-        if (!userId) {
-          console.error('❌ No user session or conversation ID found');
-          // Return HTML page that redirects to login, then back to home
-          return new NextResponse(
-            `<!DOCTYPE html>
-<html>
-<head>
-  <title>Payment Successful</title>
-  <meta http-equiv="refresh" content="3;url=/" />
-</head>
-<body>
-  <h1>Payment Successful!</h1>
-  <p>Please sign in to receive your credits. Redirecting...</p>
-  <script>setTimeout(() => window.location.href = '/', 3000);</script>
-</body>
-</html>`,
-            {
-              status: 200,
-              headers: { 'Content-Type': 'text/html' },
-            }
-          );
-        }
-        
         // Extract itemId from itemTransactions
         const itemTransactions = detailData.itemTransactions || [];
         if (itemTransactions.length === 0) {
@@ -180,7 +157,7 @@ export async function POST(request: NextRequest) {
             // Since addPaidCredits doesn't take a transaction object, we'll implement the logic here directly
             // to ensure atomicity with the transaction record.
             
-            const userCreditRef = db.collection('userCredits').doc(userId);
+            const userCreditRef = db.collection('userCredits').doc(userId!);
             const userCreditSnap = await t.get(userCreditRef);
             
             if (userCreditSnap.exists) {
@@ -334,12 +311,6 @@ export async function GET(request: NextRequest) {
         console.log('userId', userId);
         console.log('userEmail', userEmail);
         
-        if (!userId) {
-          console.error('❌ No user session or conversation ID found');
-          const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=no_session`, { status: 303 });
-        }
-        
         // Extract itemId from itemTransactions
         const itemTransactions = detailData.itemTransactions || [];
         if (itemTransactions.length === 0) {
@@ -365,7 +336,7 @@ export async function GET(request: NextRequest) {
         
         // Add credits to user account
         const addCreditsResult = await addPaidCredits(
-          userId,
+          userId!,
           creditPackage.credits,
           userEmail || undefined
         );

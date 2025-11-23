@@ -1,7 +1,8 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
+import { NextRequest } from "next/server";
 import { generateAuthorizationForPostRequest } from "../../utils/encryp";
 
-export async function POST(request) {
+export async function POST(request: NextRequest) {
   try {
     // Validate environment variables
     if (!process.env.IYZICO_API_KEY || !process.env.IYZICO_SECRET_KEY || !process.env.IYZICO_BASE_URL) {
@@ -42,19 +43,19 @@ export async function POST(request) {
       data
     );
     return Response.json(response.data, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Error initializing payment form:", error);
     
     // Extract meaningful error information
-    const errorMessage = error.response?.data?.errorMessage || error.message || "Unknown error";
-    const errorCode = error.response?.data?.errorCode || error.code || "UNKNOWN_ERROR";
+    const errorMessage = (error as AxiosError<any>)?.response?.data?.errorMessage || (error as Error)?.message || "Unknown error";
+    const errorCode = (error as AxiosError<any>)?.response?.data?.errorCode || (error as any)?.code || "UNKNOWN_ERROR";
     
     return Response.json(
       { 
         error: "Failed to initialize payment form",
         message: errorMessage,
         code: errorCode,
-        details: process.env.NODE_ENV === "development" ? error.stack : undefined
+        details: process.env.NODE_ENV === "development" ? (error as Error)?.stack : undefined
       },
       { status: 500 }
     );

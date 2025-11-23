@@ -34,6 +34,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
+  session: {
+    strategy: "jwt",
+    // Set maxAge to 100 years (in seconds) - effectively never expires
+    maxAge: 100 * 365 * 24 * 60 * 60, // 100 years
+  },
   secret: process.env.AUTH_SECRET,
   trustHost: true, // Required for production deployments
 })
