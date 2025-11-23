@@ -137,8 +137,9 @@ export default function Home() {
     { id: 'birthday', label: 'Birthday', icon: '🎂' },
     { id: 'graduation', label: 'Graduation', icon: '🎓' },
     { id: 'anniversary', label: 'Anniversary', icon: '💕' },
-    { id: 'holiday', label: 'Holiday', icon: '❄️' },
     { id: 'just-because', label: 'Just Because', icon: '✨' },
+    { id: 'christmas', label: 'Christmas', icon: '🎄' },
+    { id: 'new-year', label: 'New Year', icon: '🎉' },
   ];
 
   const musicStyles = [
@@ -146,6 +147,8 @@ export default function Home() {
     { id: 'rock', label: 'Rock', description: 'Energetic & Fun', icon: '🚗' },
     { id: 'lullaby', label: 'Lullaby', description: 'Soft & Soothing', icon: '🎹' },
     { id: 'folk', label: 'Folk', description: 'Acoustic & Heartfelt', icon: '🎸' },
+    { id: 'jazz', label: 'Jazz', description: 'Energetic & Fun', icon: '🎷' },
+    { id: 'classical', label: 'Classical', description: 'Classical & Elegant', icon: '🎻' },
   ];
 
   // Create song mutation
