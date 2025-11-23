@@ -50,8 +50,9 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+      const sunoApiBaseUrl = process.env.SUNO_API_BASE_URL || 'https://api.sunoapi.org/api/v1';
       const sunoResponse = await axios.get(
-        `https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`,
+        `${sunoApiBaseUrl}/generate/record-info?taskId=${taskId}`,
         {
           headers: {
             'Authorization': `Bearer ${apiKey}`

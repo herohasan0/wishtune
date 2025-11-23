@@ -51,10 +51,11 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const callBackUrl = `${baseUrl}/api/suno-callback${session?.user?.id ? `?userId=${session.user.id}` : ''}`;
+    const sunoApiBaseUrl = process.env.SUNO_API_BASE_URL || 'https://api.sunoapi.org/api/v1';
 
     // Call Suno API
     const sunoResponse = await axios.post(
-      'https://api.sunoapi.org/api/v1/generate',
+      `${sunoApiBaseUrl}/generate`,
       {
         prompt: prompt,
         customMode: true,
