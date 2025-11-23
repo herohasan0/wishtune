@@ -42,68 +42,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 2. If not complete in DB, check Suno API directly (Fallback)
-    const apiKey = process.env.SUNO_API_KEY;
-    if (!apiKey) {
-      // If no API key, we can't check Suno. Just return pending.
-      return NextResponse.json({ status: 'pending', taskId }, { status: 200 });
-    }
-
-    try {
-      const sunoApiBaseUrl = process.env.SUNO_API_BASE_URL || 'https://api.sunoapi.org/api/v1';
-      const sunoResponse = await axios.get(
-        `${sunoApiBaseUrl}/generate/record-info?taskId=${taskId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`
-          }
-        }
-      );
-
-      const sunoData = sunoResponse.data;
-      
-      // Check if Suno says it's complete
-      // Suno response format: { code: 200, data: { status: 'SUCCESS', response: { data: [...] } } }
-      // Or sometimes directly data: [...] depending on endpoint version. 
-      // Based on docs: { code: 200, msg: "success", data: { taskId: "...", status: "SUCCESS", response: { data: [...] } } }
-      
-      const taskData = sunoData.data;
-      
-      if (taskData && taskData.status === 'SUCCESS' && taskData.response?.data) {
-        // Map to our format
-        const variations: SongVariation[] = taskData.response.data.map((item: any) => ({
-          id: item.id,
-          title: item.title || 'Generated Song',
-          duration: formatDuration(item.duration),
-          audioUrl: item.audio_url,
-          videoUrl: item.video_url,
-          imageUrl: item.image_url,
-          status: 'complete',
-          prompt: item.prompt,
-          tags: item.tags,
-        }));
-
-        // Update DB
-        await updateSongStatusByTaskId(taskId, 'complete', variations);
-
-        return NextResponse.json({
-          status: 'complete',
-          taskId: taskId,
-          variations: variations
-        }, { status: 200 });
-      } else if (taskData && taskData.status === 'FAILED') {
-         await updateSongStatusByTaskId(taskId, 'failed');
-         return NextResponse.json({ status: 'failed', taskId, error: 'Suno reported failure' }, { status: 200 });
-      }
-
-    } catch (sunoError) {
-      console.error('Error checking Suno API:', sunoError);
-      // Fall through to return pending
-    }
-
-    // Default: return pending
+    // 2. If not complete in DB, just return pending (Callback will update it)
     return NextResponse.json({ status: 'pending', taskId }, { status: 200 });
-
   } catch (error) {
     console.error('Error checking song status:', error);
     return NextResponse.json(
