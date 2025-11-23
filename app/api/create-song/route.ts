@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { canCreateSong } from '@/lib/credits';
+import axios from 'axios';
 
 interface SongRequest {
   name: string;
@@ -27,67 +28,68 @@ export async function POST(request: NextRequest) {
       // For now, we'll allow it and let the frontend track it
     } else {
       // Check if user has credits (logged in users)
-    const creditCheck = await canCreateSong(session.user.id, session.user.email);
-    if (!creditCheck.canCreate) {
-      return NextResponse.json(
-        { error: creditCheck.reason || 'Insufficient credits' },
-        { status: 403 }
-      );
+      const creditCheck = await canCreateSong(session.user.id, session.user.email);
+      if (!creditCheck.canCreate) {
+        return NextResponse.json(
+          { error: creditCheck.reason || 'Insufficient credits' },
+          { status: 403 }
+        );
       }
     }
 
-    // Mock response - return pending song with taskId for polling
-    // NOTE: For instant testing without polling, uncomment this complete response:
-    /*
-    const mockSong = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      celebrationType: celebrationType,
-      style: musicStyle,
-      createdAt: new Date().toISOString(),
-      taskId: 'dde26b1983596bf6c3beef3e1064e10a',
-      status: 'complete',
-      message: 'Songs are ready!',
-      variations: [
-        {
-          id: '34fcc4ad-eb8a-4b5a-8a65-d77df95b2cc6',
-          title: 'Version 1',
-          duration: '0:41',
-          audioUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2.mp3',
-          streamAudioUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2',
-          imageUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2.jpeg',
-          status: 'complete',
-          prompt: `A joyful ${celebrationType} celebration song for ${name}. The song should be uplifting, celebratory, and include ${name}'s name in the lyrics. Make it heartfelt and memorable.`,
-          tags: musicStyle
+    const apiKey = process.env.SUNO_API_KEY;
+    if (!apiKey) {
+      console.error('SUNO_API_KEY is not defined');
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
+    // Construct prompt
+    const prompt = `A joyful ${celebrationType} celebration song for ${name}. The song should be uplifting, celebratory, and include ${name}'s name in the lyrics. Make it heartfelt and memorable.`;
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const callBackUrl = `${baseUrl}/api/suno-callback${session?.user?.id ? `?userId=${session.user.id}` : ''}`;
+
+    // Call Suno API
+    const sunoResponse = await axios.post(
+      'https://api.sunoapi.org/api/v1/generate',
+      {
+        prompt: prompt,
+        customMode: true,
+        style: musicStyle,
+        title: name,
+        model: 'V5',
+        instrumental: false,
+        callBackUrl: callBackUrl,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
         },
-        {
-          id: 'de1078c8-5422-4b32-927b-4a98d62b7525',
-          title: 'Version 2',
-          duration: '0:21',
-          audioUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1.mp3',
-          streamAudioUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1',
-          imageUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1.jpeg',
-          status: 'complete',
-          prompt: `A joyful ${celebrationType} celebration song for ${name}. The song should be uplifting, celebratory, and include ${name}'s name in the lyrics. Make it heartfelt and memorable.`,
-          tags: musicStyle
-        }
-      ]
-    };
-    */
-    
-    // Original Suno AI mock URLs for reference (when songs are complete):
-    // audioUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2.mp3',
-    // streamAudioUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2',
-    // imageUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2.jpeg',
-    
-    // Default: Return pending status (requires polling check-song-status)
-    const mockSong = {
+      }
+    );
+
+    const taskId = sunoResponse.data?.data?.taskId;
+
+    if (!taskId) {
+      console.error('Failed to get taskId from Suno API', sunoResponse.data);
+      return NextResponse.json(
+        { error: 'Failed to initiate song generation' },
+        { status: 500 }
+      );
+    }
+
+    // Return pending song with taskId for polling
+    const pendingSong = {
       id: Date.now().toString(),
       name: name.trim(),
       celebrationType: celebrationType,
       style: musicStyle,
       createdAt: new Date().toISOString(),
-      taskId: 'dde26b1983596bf6c3beef3e1064e10a',
+      taskId: taskId,
       status: 'pending',
       message: 'Songs are being generated. This may take 30-60 seconds.',
       variations: [
@@ -106,11 +108,15 @@ export async function POST(request: NextRequest) {
       ]
     };
 
-    // Credits will be deducted when song is successfully created (status = 'complete')
-    // This happens in the songs page when the song becomes complete
+    // Save pending song to database immediately so callback can find it
+    if (session?.user?.id) {
+      const { saveSong } = await import('@/lib/songs');
+      await saveSong(session.user.id, pendingSong, session.user.email);
+    }
 
-    return NextResponse.json(mockSong, { status: 200 });
+    return NextResponse.json(pendingSong, { status: 200 });
   } catch (error) {
+    console.error('Error creating song:', error);
     return NextResponse.json(
       { 
         error: 'An unexpected error occurred while creating the song',

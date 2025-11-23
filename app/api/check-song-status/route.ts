@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { updateSongStatusByTaskId, SongVariation } from '@/lib/songs';
+import { db } from '@/lib/firebase';
+import axios from 'axios';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,48 +15,96 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Mock response - return hardcoded data instead of making API request
-    // NOTE: Original Suno AI mock URLs (commented out for later use):
-    // audioUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2.mp3',
-    // streamAudioUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2',
-    // imageUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2.jpeg',
-    //
-    // audioUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1.mp3',
-    // streamAudioUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1',
-    // imageUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1.jpeg',
-    
-    // Using Suno AI mock URLs (these will be proxied through /api/proxy-audio to handle CORS)
-    const mockResponse = {
-      status: 'complete',
-      taskId: 'dde26b1983596bf6c3beef3e1064e10a',
-      variations: [
-        {
-          id: '34fcc4ad-eb8a-4b5a-8a65-d77df95b2cc6',
-          title: 'Version 1',
-          duration: '0:41',
-          audioUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2.mp3',
-          streamAudioUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2',
-          imageUrl: 'https://musicfile.api.box/MzRmY2M0YWQtZWI4YS00YjVhLThhNjUtZDc3ZGY5NWIyY2M2.jpeg',
+    // 1. Check database first
+    const songsRef = db.collection('songs');
+    const snapshot = await songsRef.where('taskId', '==', taskId).limit(1).get();
+
+    if (!snapshot.empty) {
+      const songDoc = snapshot.docs[0];
+      const songData = songDoc.data();
+
+      // If song is already complete in DB (via callback), return it
+      if (songData.status === 'complete') {
+        return NextResponse.json({
           status: 'complete',
-          prompt: 'A joyful birthday celebration song for hasan. The song should be uplifting, celebratory, and include hasan\'s name in the lyrics. Make it heartfelt and memorable.',
-          tags: 'Pop'
-        },
+          taskId: taskId,
+          variations: songData.variations
+        }, { status: 200 });
+      }
+      
+      // If failed, return failed
+      if (songData.status === 'failed') {
+        return NextResponse.json({
+          status: 'failed',
+          taskId: taskId,
+          error: 'Song generation failed'
+        }, { status: 200 });
+      }
+    }
+
+    // 2. If not complete in DB, check Suno API directly (Fallback)
+    const apiKey = process.env.SUNO_API_KEY;
+    if (!apiKey) {
+      // If no API key, we can't check Suno. Just return pending.
+      return NextResponse.json({ status: 'pending', taskId }, { status: 200 });
+    }
+
+    try {
+      const sunoResponse = await axios.get(
+        `https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`,
         {
-          id: 'de1078c8-5422-4b32-927b-4a98d62b7525',
-          title: 'Version 2',
-          duration: '0:21',
-          audioUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1.mp3',
-          streamAudioUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1',
-          imageUrl: 'https://musicfile.api.box/ZGUxMDc4YzgtNTQyMi00YjMyLTkyN2ItNGE5OGQ2MmI3NTI1.jpeg',
-          status: 'complete',
-          prompt: 'A joyful birthday celebration song for hasan. The song should be uplifting, celebratory, and include hasan\'s name in the lyrics. Make it heartfelt and memorable.',
-          tags: 'Pop'
+          headers: {
+            'Authorization': `Bearer ${apiKey}`
+          }
         }
-      ]
-    };
-    
-    return NextResponse.json(mockResponse, { status: 200 });
+      );
+
+      const sunoData = sunoResponse.data;
+      
+      // Check if Suno says it's complete
+      // Suno response format: { code: 200, data: { status: 'SUCCESS', response: { data: [...] } } }
+      // Or sometimes directly data: [...] depending on endpoint version. 
+      // Based on docs: { code: 200, msg: "success", data: { taskId: "...", status: "SUCCESS", response: { data: [...] } } }
+      
+      const taskData = sunoData.data;
+      
+      if (taskData && taskData.status === 'SUCCESS' && taskData.response?.data) {
+        // Map to our format
+        const variations: SongVariation[] = taskData.response.data.map((item: any) => ({
+          id: item.id,
+          title: item.title || 'Generated Song',
+          duration: formatDuration(item.duration),
+          audioUrl: item.audio_url,
+          videoUrl: item.video_url,
+          imageUrl: item.image_url,
+          status: 'complete',
+          prompt: item.prompt,
+          tags: item.tags,
+        }));
+
+        // Update DB
+        await updateSongStatusByTaskId(taskId, 'complete', variations);
+
+        return NextResponse.json({
+          status: 'complete',
+          taskId: taskId,
+          variations: variations
+        }, { status: 200 });
+      } else if (taskData && taskData.status === 'FAILED') {
+         await updateSongStatusByTaskId(taskId, 'failed');
+         return NextResponse.json({ status: 'failed', taskId, error: 'Suno reported failure' }, { status: 200 });
+      }
+
+    } catch (sunoError) {
+      console.error('Error checking Suno API:', sunoError);
+      // Fall through to return pending
+    }
+
+    // Default: return pending
+    return NextResponse.json({ status: 'pending', taskId }, { status: 200 });
+
   } catch (error) {
+    console.error('Error checking song status:', error);
     return NextResponse.json(
       { 
         error: 'An unexpected error occurred',
@@ -62,5 +113,12 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function formatDuration(seconds: number): string {
+  if (!seconds) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 

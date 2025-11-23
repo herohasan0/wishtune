@@ -152,3 +152,39 @@ export async function getSongById(songId: string): Promise<SongDocument | null> 
   }
 }
 
+
+/**
+ * Update song status by taskId
+ */
+export async function updateSongStatusByTaskId(
+  taskId: string,
+  status: string,
+  variations?: SongVariation[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const songsRef = db.collection(SONGS_COLLECTION);
+    const snapshot = await songsRef.where('taskId', '==', taskId).limit(1).get();
+
+    if (snapshot.empty) {
+      return { success: false, error: 'Song not found' };
+    }
+
+    const doc = snapshot.docs[0];
+    const updateData: any = {
+      status,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    if (variations) {
+      updateData.variations = variations;
+    }
+
+    await doc.ref.update(updateData);
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update song',
+    };
+  }
+}
