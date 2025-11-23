@@ -46,16 +46,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Construct prompt
-    const prompt = `Create a ${musicStyle} song celebrating ${name}'s ${celebrationType}.
-
-Style: ${musicStyle} genre with authentic instrumentation and production.
-Mood: Uplifting, warm, and celebratory.
-Duration: At least 50 seconds, full-length song with complete musical sections.
-Lyrics: Include ${name}'s name naturally in the chorus and verses. Make the lyrics personal, heartfelt, and memorable.
-Structure: Verse, chorus, verse, chorus, bridge, final chorus.
-
-The song should feel like a genuine ${musicStyle} track that captures the joy and significance of this ${celebrationType} celebration.`;
+    // Construct prompt (max 500 chars for non-custom mode)
+    const prompt = `A ${musicStyle} ${celebrationType} song for ${name}. Start with "${name}" in the first line. Uplifting, at least 50 seconds. Include ${name}'s name throughout. Full track with verse, chorus, bridge. ${musicStyle} style.`;
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const callBackUrl = `${baseUrl}/api/suno-callback${session?.user?.id ? `?userId=${session.user.id}` : ''}`;
