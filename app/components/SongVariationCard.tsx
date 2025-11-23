@@ -43,6 +43,49 @@ export default function SongVariationCard({
         isPlaying ? 'border-[#F39A43]' : ''
       }`}
     >
+      {/* Album Cover */}
+      <div className="mb-5 flex justify-center">
+        <div className="relative aspect-square w-full max-w-[180px] overflow-hidden rounded-2xl shadow-lg">
+          {variation.imageUrl ? (
+            <img
+              src={variation.imageUrl}
+              alt={`Album cover for ${variation.title || `Song ${index + 1}`}`}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#F8E4D0] to-[#E8C4A8]">
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                className="text-[#C49A6C]"
+              >
+                <path
+                  d="M9 18V5l12-2v13"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="6" cy="18" r="3" stroke="currentColor" strokeWidth="2" />
+                <circle cx="18" cy="16" r="3" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            </div>
+          )}
+          {isPlaying && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="flex items-end gap-1">
+                <span className="h-3 w-1 animate-pulse rounded-full bg-white" style={{ animationDelay: '0ms' }} />
+                <span className="h-5 w-1 animate-pulse rounded-full bg-white" style={{ animationDelay: '150ms' }} />
+                <span className="h-4 w-1 animate-pulse rounded-full bg-white" style={{ animationDelay: '300ms' }} />
+                <span className="h-6 w-1 animate-pulse rounded-full bg-white" style={{ animationDelay: '450ms' }} />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="space-y-2">
         <p className="text-sm font-semibold uppercase text-[#C0772C]">
           {variation.title || `Song Vibe ${index + 1}`}

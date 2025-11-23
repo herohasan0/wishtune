@@ -365,20 +365,65 @@ export default function AccountPage() {
                                   : 'border-[#F3E4D6] bg-gradient-to-r from-[#FFF5EB] to-white'
                               }`}
                             >
-                              <div className="mb-3">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="text-sm font-semibold text-[#C0772C]">
-                                    {variation.title || `Version ${index + 1}`}
-                                  </p>
+                              {/* Album Cover and Info */}
+                              <div className="mb-3 flex gap-3">
+                                {/* Album Thumbnail */}
+                                <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg shadow-sm">
+                                  {variation.imageUrl ? (
+                                    <img
+                                      src={variation.imageUrl}
+                                      alt={`Cover for ${variation.title || `Version ${index + 1}`}`}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#F8E4D0] to-[#E8C4A8]">
+                                      <svg
+                                        width="24"
+                                        height="24"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        className="text-[#C49A6C]"
+                                      >
+                                        <path
+                                          d="M9 18V5l12-2v13"
+                                          stroke="currentColor"
+                                          strokeWidth="2"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                        />
+                                        <circle cx="6" cy="18" r="3" stroke="currentColor" strokeWidth="2" />
+                                        <circle cx="18" cy="16" r="3" stroke="currentColor" strokeWidth="2" />
+                                      </svg>
+                                    </div>
+                                  )}
                                   {isPlaying && (
-                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#FFF2E3] text-[#D6721E]">
-                                      Playing
-                                    </span>
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                      <div className="flex items-end gap-0.5">
+                                        <span className="h-2 w-0.5 animate-pulse rounded-full bg-white" style={{ animationDelay: '0ms' }} />
+                                        <span className="h-3 w-0.5 animate-pulse rounded-full bg-white" style={{ animationDelay: '150ms' }} />
+                                        <span className="h-2.5 w-0.5 animate-pulse rounded-full bg-white" style={{ animationDelay: '300ms' }} />
+                                        <span className="h-4 w-0.5 animate-pulse rounded-full bg-white" style={{ animationDelay: '450ms' }} />
+                                      </div>
+                                    </div>
                                   )}
                                 </div>
-                                <p className="text-xs text-[#8F6C54]">
-                                  {variation.duration || '—'}
-                                </p>
+
+                                {/* Song Info */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-sm font-semibold text-[#C0772C] truncate">
+                                      {variation.title || `Version ${index + 1}`}
+                                    </p>
+                                    {isPlaying && (
+                                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#FFF2E3] text-[#D6721E] flex-shrink-0">
+                                        Playing
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-[#8F6C54]">
+                                    {variation.duration || '—'}
+                                  </p>
+                                </div>
                               </div>
 
                               {/* Audio Player */}
