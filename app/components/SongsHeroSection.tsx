@@ -1,9 +1,10 @@
 interface SongsHeroSectionProps {
   songName?: string;
   celebrationLabel?: string;
+  isPending?: boolean;
 }
 
-export default function SongsHeroSection({ songName, celebrationLabel }: SongsHeroSectionProps) {
+export default function SongsHeroSection({ songName, celebrationLabel, isPending }: SongsHeroSectionProps) {
   return (
     <section className="text-center">
       {songName && (
@@ -12,10 +13,10 @@ export default function SongsHeroSection({ songName, celebrationLabel }: SongsHe
         </p>
       )}
       <h1 className="text-4xl font-extrabold text-[#3E210F] sm:text-6xl md:text-7xl">
-        Your Songs Are Ready!
+        {isPending ? 'Creating Your Songs...' : 'Your Songs Are Ready!'}
       </h1>
       <p className="mt-3 text-lg text-[#8F6E54] sm:text-xl">
-        Listen and choose your favorite.
+        {isPending ? 'Please wait while we compose your music.' : 'Listen and choose your favorite.'}
       </p>
     </section>
   );

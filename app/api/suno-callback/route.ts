@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
         id: item.id,
         title: item.title || 'Generated Song',
         duration: formatDuration(item.duration),
-        audioUrl: item.audio_url,
-        videoUrl: item.video_url,
-        imageUrl: item.image_url,
-        status: 'complete', // Individual variation status
-        prompt: item.prompt,
-        tags: item.tags,
+        audioUrl: item.audio_url || '',
+        videoUrl: item.video_url || '',
+        imageUrl: item.image_url || '',
+        status: item.audio_url ? 'complete' : 'processing', // Mark as processing if no audio yet
+        prompt: item.prompt || '',
+        tags: item.tags || '',
       }));
     }
 

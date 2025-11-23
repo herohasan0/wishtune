@@ -259,7 +259,7 @@ function SongsPageContent() {
           </Link>
         )}
         
-        <SongsHeroSection songName={song?.name} celebrationLabel={celebrationLabel} />
+        <SongsHeroSection songName={song?.name} celebrationLabel={celebrationLabel} isPending={showPending} />
 
         {!isMounted || !song ? (
           <LoadingState />
