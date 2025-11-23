@@ -2,83 +2,37 @@ import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
 import { generateAuthorizationForPostRequest } from '../../utils/encryp';
 import { auth } from '@/auth';
-import { addPaidCredits } from '@/lib/credits';
-import { getCreditPackageById } from '@/lib/packages';
 import { db } from '@/lib/firebase';
 import { FieldValue } from 'firebase-admin/firestore';
+import { getCreditPackageById } from '@/lib/packages';
 
 /**
- * Payment callback endpoint for iyzico
- * This endpoint receives callbacks after payment processing
+ * Shared payment processing logic for both POST and GET callbacks
  */
-export async function POST(request: NextRequest) {
+async function processPayment(request: NextRequest, token: string, queryParams: Record<string, string>, body: any) {
   try {
-    // Parse request URL and query parameters
-    const url = request.url;
-    const searchParams = request.nextUrl.searchParams;
-    const queryParams: Record<string, string> = {};
-    
-    searchParams.forEach((value, key) => {
-      queryParams[key] = value;
-    });
-    
-    // Parse headers
-    const headers: Record<string, string> = {};
-    request.headers.forEach((value, key) => {
-      headers[key] = value;
-    });
-    
-    // Try to get body as JSON first
-    let body: Record<string, unknown> | null = null;
-    let bodyText: string = '';
-    
-    try {
-      bodyText = await request.text();
-      
-      // Try to parse as JSON
-      if (bodyText) {
-        try {
-          body = JSON.parse(bodyText) as Record<string, unknown>;
-        } catch {
-          // If not JSON, try to parse as URL-encoded form data
-          try {
-            const formData = new URLSearchParams(bodyText);
-            const formParams: Record<string, string> = {};
-            formData.forEach((value, key) => {
-              formParams[key] = value;
-            });
-            body = formParams;
-          } catch {
-            // Could not parse as JSON or Form Data
-          }
-        }
+    // 1. Idempotency Check: Check if transaction already exists
+    const transactionRef = db.collection('transactions').doc(token);
+    const transactionDoc = await transactionRef.get();
+
+    if (transactionDoc.exists) {
+      const data = transactionDoc.data();
+      if (data?.status === 'SUCCESS') {
+        console.log('✅ Transaction already processed successfully:', token);
+        const origin = request.nextUrl.origin;
+        return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
       }
-    } catch (error) {
-      // Error reading body
     }
-    
-    // Extract token from body
-    const token = (body?.token as string | undefined) || queryParams?.token;
-    
-    if (!token) {
-      return NextResponse.json({ 
-        success: false,
-        message: 'No token found in callback',
-        received: {
-          queryParams,
-          body: body || bodyText || null,
-        }
-      }, { status: 400 });
-    }
-    
-    // Prepare request data
+
+    // 2. Verify Payment with Iyzico
+    // https://docs.iyzico.com/odeme-metotlari/odeme-formu/cf-entegrasyonu/cf-ornek-entegrasyon#adim-4-cf-sorgulama
     const detailRequestData = {
-      token: token
+      locale: "en",
+      token: token,
+      conversationId: queryParams.conversationId || body?.conversationId || undefined,
     };
-    
     const requestDataString = JSON.stringify(detailRequestData);
     
-    // Generate authorization header
     const authorization = generateAuthorizationForPostRequest({
       apiKey: process.env.IYZICO_API_KEY!,
       secretKey: process.env.IYZICO_SECRET_KEY!,
@@ -86,7 +40,6 @@ export async function POST(request: NextRequest) {
       uriPath: '/payment/iyzipos/checkoutform/auth/ecom/detail',
     });
     
-    // Make request to iyzico detail endpoint
     const iyzipayBase = axios.create({
       baseURL: process.env.IYZICO_BASE_URL,
       headers: {
@@ -96,153 +49,191 @@ export async function POST(request: NextRequest) {
       },
     });
     
-    try {
-      const detailResponse = await iyzipayBase.post(
-        'payment/iyzipos/checkoutform/auth/ecom/detail',
-        detailRequestData
-      );
-      
-      const detailData = detailResponse.data as {
-        paymentStatus?: string;
-        itemTransactions?: Array<{ itemId?: string }>;
-        [key: string]: unknown;
-      };
-      
-      // Check if payment was successful
-      if (detailData.paymentStatus === 'SUCCESS') {
-        // Get user session
-        const session = await auth();
-        const conversationId = detailData.conversationId as string | undefined;
-        
-        // Use session user ID or fallback to conversationId (which we set to user ID in payment init)
-        const userId = session?.user?.id || conversationId;
-        const userEmail = session?.user?.email;
-        
-        // Extract itemId from itemTransactions
-        const itemTransactions = detailData.itemTransactions || [];
-        if (itemTransactions.length === 0) {
-          console.error('❌ No item transactions found');
-          const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=no_items`, { status: 303 });
-        }
-        
-        const itemId = itemTransactions[0]?.itemId;
-        if (!itemId) {
-          console.error('❌ No itemId found in transactions');
-          const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=no_item_id`, { status: 303 });
-        }
-        
-        // Get the package to find credit amount
-        const creditPackage = await getCreditPackageById(itemId);
-        if (!creditPackage) {
-          console.error(`❌ Package not found for itemId: ${itemId}`);
-          const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
-        }
-        
-        // [FIX] Idempotency Check & Atomic Transaction
-        const transactionRef = db.collection('transactions').doc(token);
-        
-        try {
-          await db.runTransaction(async (t) => {
-            const doc = await t.get(transactionRef);
-            
-            if (doc.exists) {
-              console.log('Transaction already processed:', token);
-              return; // Already processed, do nothing
-            }
+    const detailResponse = await iyzipayBase.post(
+      'payment/iyzipos/checkoutform/auth/ecom/detail',
+      detailRequestData
+    );
+    
+    const detailData = detailResponse.data as {
+      paymentStatus?: string;
+      itemTransactions?: Array<{ itemId?: string }>;
+      conversationId?: string;
+      [key: string]: unknown;
+    };
 
-            // Add credits logic inline or call helper if it supports transaction
-            // Since addPaidCredits doesn't take a transaction object, we'll implement the logic here directly
-            // to ensure atomicity with the transaction record.
-            
-            const userCreditRef = db.collection('userCredits').doc(userId!);
-            const userCreditSnap = await t.get(userCreditRef);
-            
-            if (userCreditSnap.exists) {
-              t.update(userCreditRef, {
-                paidCredits: FieldValue.increment(creditPackage.credits),
-                updatedAt: FieldValue.serverTimestamp(),
-                // Only update email if we have it from session
-                ...(userEmail ? { email: userEmail } : {})
-              });
-            } else {
-              t.set(userCreditRef, {
-                userId: userId,
-                email: userEmail || null,
-                freeSongsUsed: 0,
-                paidCredits: creditPackage.credits,
-                totalSongsCreated: 0,
-                createdAt: FieldValue.serverTimestamp(),
-                updatedAt: FieldValue.serverTimestamp(),
-              });
-            }
+    console.log('Payment Detail Data:', JSON.stringify(detailData, null, 2));
 
-            // Mark transaction as processed
-            t.set(transactionRef, {
-              status: 'SUCCESS',
-              itemId: itemId,
-              userId: userId,
-              credits: creditPackage.credits,
-              timestamp: FieldValue.serverTimestamp()
-            });
-          });
-          
-          // Redirect to create song page (home page) with 303 status to force GET method
-          const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
-          
-        } catch (error) {
-          console.error('❌ Transaction failed:', error);
-          const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=transaction_failed`, { status: 303 });
+    if (detailData.paymentStatus !== 'SUCCESS') {
+      console.error('❌ Payment failed at Iyzico:', detailData);
+      const origin = request.nextUrl.origin;
+      return NextResponse.redirect(`${origin}/?payment=failed`, { status: 303 });
+    }
+
+    // 3. Recover User Context
+    const session = await auth();
+    let conversationId = detailData.conversationId;
+    
+    // Priority: Session User ID -> Conversation ID -> Firestore Payment Session
+    let userId = session?.user?.id || conversationId;
+    const userEmail = session?.user?.email;
+
+    // Fallback: Check paymentSessions collection if userId is still missing
+    if (!userId) {
+      console.log(`⚠️ userId missing from session and conversationId. Checking paymentSessions for token: ${token}`);
+      try {
+        const paymentSessionDoc = await db.collection('paymentSessions').doc(token).get();
+        if (paymentSessionDoc.exists) {
+          const sessionData = paymentSessionDoc.data();
+          userId = sessionData?.userId;
+          conversationId = sessionData?.conversationId; // Update conversationId if found
+          console.log(`✅ Recovered userId from paymentSessions: ${userId}`);
+        } else {
+          console.log(`❌ No payment session found for token: ${token}`);
         }
-      } else {
-        // Redirect to home page with error
-        const origin = request.nextUrl.origin;
-        return NextResponse.redirect(`${origin}/?payment=failed`, { status: 303 });
+      } catch (error) {
+        console.error("❌ Error fetching payment session:", error);
       }
-      
-    } catch (detailError: unknown) {
-      const axiosError = detailError as { response?: { data?: unknown; status?: number }; message?: string };
-      console.error('❌ Error calling iyzico detail endpoint:', detailError);
-      console.error('Error response:', axiosError?.response?.data);
-      console.error('Error status:', axiosError?.response?.status);
-      
-      return NextResponse.json(
-        { 
-          success: false,
-          error: 'Failed to call iyzico detail endpoint',
-          callbackData: {
-            queryParams,
-            body: body || bodyText || null,
-          },
-          detailError: {
-            message: axiosError?.message,
-            response: axiosError?.response?.data,
-            status: axiosError?.response?.status
-          }
-        },
-        { status: 500 }
-      );
+    }
+
+    if (!userId) {
+      console.error('❌ Critical: Could not recover userId from session, conversationId, or paymentSessions');
+      console.error('Session:', session);
+      console.error('ConversationId:', conversationId);
+      const origin = request.nextUrl.origin;
+      return NextResponse.redirect(`${origin}/?error=session_lost`, { status: 303 });
+    }
+
+    // 4. Get Package Details
+    const itemTransactions = detailData.itemTransactions || [];
+    const itemId = itemTransactions[0]?.itemId;
+    
+    if (!itemId) {
+      console.error('❌ No itemId found in transactions');
+      const origin = request.nextUrl.origin;
+      return NextResponse.redirect(`${origin}/?error=no_item_id`, { status: 303 });
     }
     
+    const creditPackage = await getCreditPackageById(itemId);
+    if (!creditPackage) {
+      console.error(`❌ Package not found for itemId: ${itemId}`);
+      const origin = request.nextUrl.origin;
+      return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
+    }
+
+    // 5. Atomic Transaction: Record Transaction + Add Credits
+    try {
+      await db.runTransaction(async (t) => {
+        // Re-check idempotency inside transaction for safety
+        const doc = await t.get(transactionRef);
+        if (doc.exists && doc.data()?.status === 'SUCCESS') {
+          return;
+        }
+
+        const userCreditRef = db.collection('userCredits').doc(userId!);
+        const userCreditSnap = await t.get(userCreditRef);
+        
+        if (userCreditSnap.exists) {
+          t.update(userCreditRef, {
+            paidCredits: FieldValue.increment(creditPackage.credits),
+            updatedAt: FieldValue.serverTimestamp(),
+            // Only update email if we have it from session to avoid overwriting with null
+            ...(userEmail ? { email: userEmail } : {})
+          });
+        } else {
+          t.set(userCreditRef, {
+            userId: userId,
+            email: userEmail || null,
+            freeSongsUsed: 0,
+            paidCredits: creditPackage.credits,
+            totalSongsCreated: 0,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+
+        t.set(transactionRef, {
+          status: 'SUCCESS',
+          itemId: itemId,
+          userId: userId,
+          credits: creditPackage.credits,
+          timestamp: FieldValue.serverTimestamp(),
+          providerResponse: detailData
+        });
+      });
+      
+      console.log(`✅ Successfully processed payment for user ${userId}, added ${creditPackage.credits} credits`);
+      const origin = request.nextUrl.origin;
+      return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
+
+    } catch (error) {
+      console.error('❌ Database transaction failed:', error);
+      const origin = request.nextUrl.origin;
+      return NextResponse.redirect(`${origin}/?error=transaction_failed`, { status: 303 });
+    }
+
   } catch (error) {
-    console.error('❌ Error processing payment callback:', error);
-    console.error('Error details:', error instanceof Error ? error.message : String(error));
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Failed to process payment callback',
-        details: error instanceof Error ? error.message : String(error)
-      },
-      { status: 500 }
-    );
+    console.error('❌ Error in processPayment:', error);
+    if (axios.isAxiosError(error)) {
+        console.error('Axios error details:', error.response?.data);
+    }
+    const origin = request.nextUrl.origin;
+    return NextResponse.redirect(`${origin}/?error=processing_failed`, { status: 303 });
   }
 }
 
-// Also handle GET requests (when iyzico redirects user back)
+export async function POST(request: NextRequest) {
+  try {
+    const url = request.url;
+    const searchParams = request.nextUrl.searchParams;
+    const queryParams: Record<string, string> = {};
+    
+    searchParams.forEach((value, key) => {
+      queryParams[key] = value;
+    });
+    
+    let body: Record<string, unknown> | null = null;
+    let bodyText: string = '';
+    
+    try {
+      bodyText = await request.text();
+      if (bodyText) {
+        try {
+          body = JSON.parse(bodyText) as Record<string, unknown>;
+        } catch {
+          try {
+            const formData = new URLSearchParams(bodyText);
+            const formParams: Record<string, string> = {};
+            formData.forEach((value, key) => {
+              formParams[key] = value;
+            });
+            body = formParams;
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error reading body:', error);
+    }
+    
+    const token = (body?.token as string | undefined) || queryParams?.token;
+    
+    if (!token) {
+      return NextResponse.json({ 
+        success: false,
+        message: 'No token found in callback',
+        received: { queryParams, body: body || bodyText || null }
+      }, { status: 400 });
+    }
+    
+    return processPayment(request, token, queryParams, body);
+
+  } catch (error) {
+    console.error('❌ Error in POST callback:', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const queryParams: Record<string, string> = {};
@@ -251,122 +242,15 @@ export async function GET(request: NextRequest) {
     queryParams[key] = value;
   });
   
-  // If token is provided in query params, process the payment
   const token = queryParams.token;
-  if (token) {
-    try {
-      // Prepare request data
-      const detailRequestData = {
-        token: token
-      };
-      
-      const requestDataString = JSON.stringify(detailRequestData);
-      
-      // Generate authorization header
-      const authorization = generateAuthorizationForPostRequest({
-        apiKey: process.env.IYZICO_API_KEY!,
-        secretKey: process.env.IYZICO_SECRET_KEY!,
-        data: requestDataString,
-        uriPath: '/payment/iyzipos/checkoutform/auth/ecom/detail',
-      });
-      
-      // Make request to iyzico detail endpoint
-      const iyzipayBase = axios.create({
-        baseURL: process.env.IYZICO_BASE_URL,
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: authorization,
-        },
-      });
-      
-      const detailResponse = await iyzipayBase.post(
-        'payment/iyzipos/checkoutform/auth/ecom/detail',
-        detailRequestData
-      );
-      
-      const detailData = detailResponse.data as {
-        paymentStatus?: string;
-        itemTransactions?: Array<{ itemId?: string }>;
-        [key: string]: unknown;
-      };
-
-      console.log('detailData', detailData);
-      console.log('queryParams', queryParams);
-
-      console.log('detailData.paymentStatus', detailData.paymentStatus);
-      
-      // Check if payment was successful
-      if (detailData.paymentStatus === 'SUCCESS') {
-        // Get user session
-        const session = await auth();
-        const conversationId = detailData.conversationId as string | undefined;
-        
-        // Use session user ID or fallback to conversationId
-        const userId = session?.user?.id || conversationId;
-        const userEmail = session?.user?.email;
-
-        console.log('session', session);
-        console.log('conversationId', conversationId);
-        console.log('userId', userId);
-        console.log('userEmail', userEmail);
-        
-        // Extract itemId from itemTransactions
-        const itemTransactions = detailData.itemTransactions || [];
-        if (itemTransactions.length === 0) {
-          console.error('❌ No item transactions found');
-          const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=no_items`, { status: 303 });
-        }
-        
-        const itemId = itemTransactions[0]?.itemId;
-        if (!itemId) {
-          console.error('❌ No itemId found in transactions');
-          const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=no_item_id`, { status: 303 });
-        }
-        
-        // Get the package to find credit amount
-        const creditPackage = await getCreditPackageById(itemId);
-        if (!creditPackage) {
-          console.error(`❌ Package not found for itemId: ${itemId}`);
-          const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
-        }
-        
-        // Add credits to user account
-        const addCreditsResult = await addPaidCredits(
-          userId!,
-          creditPackage.credits,
-          userEmail || undefined
-        );
-        
-        if (!addCreditsResult.success) {
-          console.error('❌ Failed to add credits:', addCreditsResult.error);
-          const origin = request.nextUrl.origin;
-          return NextResponse.redirect(`${origin}/?error=credit_add_failed`, { status: 303 });
-        }
-        
-        // Redirect to create song page (home page) with 303 status to force GET method
-        const origin = request.nextUrl.origin;
-        return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
-      } else {
-        const origin = request.nextUrl.origin;
-        return NextResponse.redirect(`${origin}/?payment=failed`, { status: 303 });
-      }
-    } catch (error) {
-      console.error('❌ Error processing GET payment callback:', error);
-      const origin = request.nextUrl.origin;
-      return NextResponse.redirect(`${origin}/?error=processing_failed`, { status: 303 });
-    }
-  }
   
-  // No token, just return info
-  return NextResponse.json({ 
-    message: 'Payment callback endpoint is active',
-    method: 'POST or GET with token',
-    description: 'This endpoint receives callbacks from iyzico after payment processing',
-    testQueryParams: queryParams
-  });
-}
+  if (!token) {
+    return NextResponse.json({ 
+      message: 'Payment callback endpoint is active',
+      method: 'POST or GET with token',
+      description: 'This endpoint receives callbacks from iyzico after payment processing'
+    });
+  }
 
+  return processPayment(request, token, queryParams, null);
+}

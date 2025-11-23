@@ -184,24 +184,24 @@ export default function BuyCreditsPage() {
         id: session?.user?.email?.replace(/[^a-zA-Z0-9]/g, '') || `BY${Date.now()}`,
         name: name,
         surname: surname,
-        identityNumber: "11111111111",
+        identityNumber: "11111111111", // Placeholder as per plan
         email: session?.user?.email || '',
-        gsmNumber: "+15551234567",
+        gsmNumber: "+905555555555", // Placeholder as per plan
         registrationAddress: formData.address,
         city: formData.city,
         country: formData.country,
       },
       shippingAddress: {
-        address: formData.address,
         contactName: formData.shippingContactName || formData.fullName,
         city: formData.city,
-        country: formData.country
+        country: formData.country,
+        address: formData.address,
       },
       billingAddress: {
-        address: formData.address,
         contactName: formData.billingContactName || formData.fullName,
         city: formData.city,
-        country: formData.country
+        country: formData.country,
+        address: formData.address,
       },
       basketItems: [
         {
