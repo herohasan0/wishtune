@@ -64,7 +64,7 @@ export const trackUserAction = (
 
 // Track song creation steps
 export const trackSongCreationStep = (
-  step: 'name_entered' | 'celebration_selected' | 'style_selected' | 'create_clicked' | 'song_completed',
+  step: 'name_entered' | 'celebration_selected' | 'style_selected' | 'duration_selected' | 'create_clicked' | 'song_completed',
   data?: Record<string, any>
 ) => {
   trackEvent('song_creation_step', {
