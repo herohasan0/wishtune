@@ -13,6 +13,7 @@ import PendingStatusBanner from '../components/PendingStatusBanner';
 import LoadingState from '../components/LoadingState';
 import SongVariationCard from '../components/SongVariationCard';
 import SignUpSection from '../components/SignUpSection';
+import ShareMenu from '../components/ShareMenu';
 import { useSongPolling } from '../hooks/useSongPolling';
 import { celebrationTypeLabels } from '../utils/constants';
 import { setupPageExitTracking, trackSongCreationStep, trackButtonClick } from '../utils/analytics';
@@ -48,6 +49,16 @@ function SongsPageContent() {
   const [playingVariationId, setPlayingVariationId] = useState<string | null>(null);
   const [creditDeducted, setCreditDeducted] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [shareMenuData, setShareMenuData] = useState<{
+    songId: string;
+    variationId: string;
+    songName: string;
+    variationTitle: string;
+    taskId?: string;
+    audioUrl?: string;
+    imageUrl?: string;
+  } | null>(null);
   const isProcessingRef = useRef(false);
 
   // Save song mutation
@@ -112,52 +123,26 @@ function SongsPageContent() {
 
   const handleShare = async (songId: string, variationId: string, audioUrl?: string, songName?: string) => {
     trackButtonClick('share_song', '/songs');
-    const shareUrl = `${window.location.origin}/songs/${songId}/${variationId}`;
 
-    // Check if we can share files (for Instagram/social media)
-    if (navigator.share && audioUrl) {
-      try {
-        // Try to share the audio file directly (works on mobile for Instagram)
-        const response = await fetch(audioUrl);
-        const blob = await response.blob();
-        const fileName = `${songName || 'WishTune'}-song.mp3`;
-        const file = new File([blob], fileName, { type: 'audio/mpeg' });
+    // Find the variation to get its details
+    const variation = song?.variations.find(v => v.id === variationId);
 
-        // Check if file sharing is supported
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            title: `${songName || 'WishTune'} - Custom Song`,
-            text: 'Check out this custom song I created with WishTune!',
-            files: [file],
-          });
-          return;
-        }
-      } catch {
-        // File sharing failed, fall through to URL sharing
-      }
-
-      // Fallback to URL sharing
-      try {
-        await navigator.share({
-          title: 'Check out my WishTune song!',
-          text: 'Listen to this custom song I created!',
-          url: shareUrl,
-        });
-        return;
-      } catch {
-        // User cancelled or error occurred
-      }
-    }
-
-    // Final fallback: copy to clipboard
-    copyToClipboard(shareUrl, variationId);
+    // Open share menu
+    setShareMenuData({
+      songId,
+      variationId,
+      songName: songName || song?.name || 'WishTune',
+      variationTitle: variation?.title || `Song Option ${(song?.variations.findIndex(v => v.id === variationId) || 0) + 1}`,
+      taskId: song?.taskId,
+      audioUrl,
+      imageUrl: variation?.imageUrl,
+    });
+    setShareMenuOpen(true);
   };
 
-  const copyToClipboard = (text: string, variationId: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedId(variationId);
-      setTimeout(() => setCopiedId(null), 2000);
-    });
+  const handleCopySuccess = (variationId: string) => {
+    setCopiedId(variationId);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleDownload = async (songName: string, variationTitle: string, audioUrl?: string) => {
@@ -332,6 +317,22 @@ function SongsPageContent() {
           </>
         )}
       </div>
+
+      {/* Share Menu */}
+      {shareMenuData && (
+        <ShareMenu
+          isOpen={shareMenuOpen}
+          onClose={() => setShareMenuOpen(false)}
+          songName={shareMenuData.songName}
+          variationTitle={shareMenuData.variationTitle}
+          variationId={shareMenuData.variationId}
+          taskId={shareMenuData.taskId}
+          audioUrl={shareMenuData.audioUrl}
+          imageUrl={shareMenuData.imageUrl}
+          shareUrl={`${window.location.origin}/songs/${shareMenuData.songId}/${shareMenuData.variationId}`}
+          onCopySuccess={() => handleCopySuccess(shareMenuData.variationId)}
+        />
+      )}
     </main>
   );
 }

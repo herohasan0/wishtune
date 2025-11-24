@@ -33,7 +33,7 @@ export default function Home() {
   const [name, setName] = useState('');
   const [celebrationType, setCelebrationType] = useState('birthday');
   const [selectedStyle, setSelectedStyle] = useState('pop');
-  const [selectedDuration, setSelectedDuration] = useState(60);
+  const [selectedDuration, setSelectedDuration] = useState(30);
   const [nameError, setNameError] = useState(false);
   const [songsCreatedCount, setSongsCreatedCount] = useState<number>(0);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
@@ -154,10 +154,8 @@ export default function Home() {
   ];
 
   const durationOptions = [
-    { id: 30, label: '30 sec', description: 'Quick', icon: '⚡' },
-    { id: 60, label: '60 sec', description: 'Standard', icon: '⏱️' },
-    { id: 90, label: '90 sec', description: 'Extended', icon: '🎼' },
-    { id: 120, label: '2 min', description: 'Full', icon: '🎶' },
+    { id: 30, label: 'Short', description: '30-90 Seconds', icon: '⚡' },
+    { id: 90, label: 'Long', description: '90-150 Seconds', icon: '🎼' },
   ];
 
   // Create song mutation
@@ -181,10 +179,10 @@ export default function Home() {
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('wishtune_new_song', JSON.stringify(newSong));
         // Use window.location.href for full page navigation to ensure sessionStorage is available
-        window.location.href = '/songs';
+        window.location.href = '/account';
       } else {
         // Fallback to router.push if window is not available (shouldn't happen in browser)
-        router.push('/songs');
+        router.push('/account');
       }
     },
     onError: (error) => {

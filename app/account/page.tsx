@@ -3,13 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { clientDb } from '@/lib/firebaseClient';
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '../components/Header';
 import BackgroundBlobs from '../components/BackgroundBlobs';
 import SongPlayer from '../components/SongPlayer';
+import ShareMenu from '../components/ShareMenu';
 import { celebrationTypeLabels } from '../utils/constants';
 
 interface CreditInfo {
@@ -46,9 +49,20 @@ type TabType = 'credits' | 'songs';
 export default function AccountPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('songs');
   const [playingVariationId, setPlayingVariationId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [shareMenuData, setShareMenuData] = useState<{
+    songId: string;
+    variationId: string;
+    songName: string;
+    variationTitle: string;
+    taskId?: string;
+    audioUrl?: string;
+    imageUrl?: string;
+  } | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -95,8 +109,59 @@ export default function AccountPage() {
       return response.data;
     },
     enabled: !!session?.user && activeTab === 'songs',
-    retry: 1,
+    staleTime: Infinity, // Don't refetch automatically since we use real-time listener
   });
+
+  // Real-time updates for songs
+  useEffect(() => {
+    if (!session?.user?.id || activeTab !== 'songs') return;
+
+    const songsRef = collection(clientDb, 'songs');
+    // Note: client-side ordering requires an index. If it fails, we'll handle sorting in memory.
+    // We'll try to query simply by userId first to avoid index issues, then sort in memory.
+    const q = query(
+      songsRef,
+      where('userId', '==', session.user.id)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const updatedSongs: Song[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Convert timestamps
+        let createdAt = data.createdAt;
+        if (createdAt && typeof createdAt.toDate === 'function') {
+          createdAt = createdAt.toDate().toISOString();
+        } else if (createdAt && typeof createdAt === 'object' && 'seconds' in createdAt) {
+          createdAt = new Date(createdAt.seconds * 1000).toISOString();
+        } else if (typeof createdAt === 'string') {
+          // Keep as string
+        } else {
+          createdAt = new Date().toISOString(); // Fallback
+        }
+
+        updatedSongs.push({
+          id: doc.id,
+          ...data,
+          createdAt,
+        } as Song);
+      });
+
+      // Sort by createdAt desc
+      updatedSongs.sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      // Update React Query cache
+      queryClient.setQueryData(['songs'], { songs: updatedSongs });
+    }, (error) => {
+      console.error("Error listening to song updates:", error);
+    });
+
+    return () => unsubscribe();
+  }, [session?.user?.id, activeTab, queryClient]);
 
   const songs = songsData?.songs ?? [];
   const songsErrorMsg = songsError
@@ -207,7 +272,6 @@ export default function AccountPage() {
         {/* My Songs Tab */}
         {activeTab === 'songs' && (
           <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-6 shadow-sm">
-            <h2 className="mb-6 text-2xl font-bold text-[#2F1E14]">My Songs</h2>
             
             {songsLoading ? (
               <div className="text-center py-8 text-[#8F6C54]">
@@ -242,7 +306,7 @@ export default function AccountPage() {
                 </Link>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="divide-y divide-[#F3E4D6]">
                 {songs.map((song) => {
                   const celebrationLabel = song.celebrationType
                     ? celebrationTypeLabels[song.celebrationType] || song.celebrationType
@@ -251,7 +315,7 @@ export default function AccountPage() {
                   return (
                     <div
                       key={song.id}
-                      className="rounded-lg border border-[#F3E4D6] bg-white/95 p-6 shadow-sm"
+                      className="py-8 first:pt-0 last:pb-0"
                     >
                       {/* Song Header */}
                       <div className="mb-4 pb-4 border-b border-[#F3E4D6]">
@@ -265,8 +329,16 @@ export default function AccountPage() {
                             </span>
                           )}
                           {song.status === 'pending' && (
-                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-                              Processing
+                            <span className="flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200 shadow-sm">
+                              <span className="relative flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-500 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-600"></span>
+                              </span>
+                              <span className="animate-pulse">Processing...</span>
+                              <svg className="animate-spin h-3 w-3 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
                             </span>
                           )}
                         </div>
@@ -307,53 +379,24 @@ export default function AccountPage() {
                         {song.variations.map((variation, index) => {
                           const isPlaying = playingVariationId === variation.id;
                           const isReady = Boolean(variation.audioUrl) && variation.status === 'complete';
-                          const shareUrl = `${window.location.origin}/songs/${song.id}/${variation.id}`;
 
-                          const handleShare = async () => {
-                            // Check if we can share files (for Instagram/social media)
-                            if (navigator.share && variation.audioUrl) {
-                              try {
-                                // Try to share the audio file directly (works on mobile for Instagram)
-                                const response = await fetch(variation.audioUrl);
-                                const blob = await response.blob();
-                                const fileName = `${song.name}-${variation.title}.mp3`;
-                                const file = new File([blob], fileName, { type: 'audio/mpeg' });
-
-                                // Check if file sharing is supported
-                                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                                  await navigator.share({
-                                    title: `${song.name} - Custom Song`,
-                                    text: 'Check out this custom song I created with WishTune!',
-                                    files: [file],
-                                  });
-                                  return;
-                                }
-                              } catch {
-                                // File sharing failed, fall through to URL sharing
-                              }
-
-                              // Fallback to URL sharing
-                              try {
-                                await navigator.share({
-                                  title: `Check out ${song.name} - ${variation.title}!`,
-                                  text: 'Listen to this custom song I created!',
-                                  url: shareUrl,
-                                });
-                                return;
-                              } catch {
-                                // User cancelled or error occurred
-                              }
-                            }
-
-                            // Final fallback: copy to clipboard
-                            copyToClipboard(shareUrl, variation.id);
+                          const handleShare = () => {
+                            // Open share menu
+                            setShareMenuData({
+                              songId: song.id,
+                              variationId: variation.id,
+                              songName: song.name,
+                              variationTitle: variation.title || `Version ${index + 1}`,
+                              taskId: song.taskId,
+                              audioUrl: variation.audioUrl,
+                              imageUrl: variation.imageUrl,
+                            });
+                            setShareMenuOpen(true);
                           };
 
-                          const copyToClipboard = (text: string, variationId: string) => {
-                            navigator.clipboard.writeText(text).then(() => {
-                              setCopiedId(variationId);
-                              setTimeout(() => setCopiedId(null), 2000);
-                            });
+                          const handleCopySuccess = () => {
+                            setCopiedId(variation.id);
+                            setTimeout(() => setCopiedId(null), 2000);
                           };
 
                           const handleDownload = async () => {
@@ -644,6 +687,25 @@ export default function AccountPage() {
           </Link>
         </div>
       </div>
+
+      {/* Share Menu */}
+      {shareMenuData && (
+        <ShareMenu
+          isOpen={shareMenuOpen}
+          onClose={() => setShareMenuOpen(false)}
+          songName={shareMenuData.songName}
+          variationTitle={shareMenuData.variationTitle}
+          variationId={shareMenuData.variationId}
+          taskId={shareMenuData.taskId}
+          audioUrl={shareMenuData.audioUrl}
+          imageUrl={shareMenuData.imageUrl}
+          shareUrl={`${window.location.origin}/songs/${shareMenuData.songId}/${shareMenuData.variationId}`}
+          onCopySuccess={() => {
+            setCopiedId(shareMenuData.variationId);
+            setTimeout(() => setCopiedId(null), 2000);
+          }}
+        />
+      )}
     </main>
   );
 }

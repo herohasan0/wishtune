@@ -14,6 +14,8 @@ export interface SongVariation {
   status?: string;
   prompt?: string;
   tags?: string;
+  lyrics?: string;
+  lyricsTimestamped?: Array<{ timestamp: number; text: string }>;
 }
 
 export interface SongDocument {

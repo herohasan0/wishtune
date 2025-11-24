@@ -21,7 +21,7 @@ export default function DurationSelector({
       <p className="text-sm font-semibold uppercase text-[#C07A33]">
         4. Choose song length
       </p>
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-2">
         {durations.map((duration) => {
           const isSelected = selectedDuration === duration.id;
           return (
