@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { canCreateSong } from '@/lib/credits';
+import { checkRateLimit, getClientIdentifier, RateLimitPresets } from '@/lib/ratelimit';
 import axios from 'axios';
 
 interface SongRequest {
@@ -13,6 +14,30 @@ interface SongRequest {
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
+
+    // Apply rate limiting (5 songs per minute per user/IP)
+    const identifier = getClientIdentifier(request, session?.user?.id);
+    const rateLimitResult = checkRateLimit(identifier, RateLimitPresets.SONG_CREATION);
+
+    if (!rateLimitResult.success) {
+      const resetTime = new Date(rateLimitResult.reset).toISOString();
+      return NextResponse.json(
+        {
+          error: 'Too many requests. Please slow down.',
+          resetAt: resetTime,
+        },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+            'Retry-After': Math.ceil((rateLimitResult.reset - Date.now()) / 1000).toString(),
+          },
+        }
+      );
+    }
+
     const body: SongRequest = await request.json();
     const { name, celebrationType, musicStyle, duration = 60 } = body;
 

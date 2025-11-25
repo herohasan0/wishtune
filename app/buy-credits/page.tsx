@@ -312,7 +312,9 @@ export default function BuyCreditsPage() {
                 <div>
                   <input
                     type="text"
+                    name="editFullName"
                     placeholder="Full Name"
+                    autoComplete="name"
                     value={formData.fullName}
                     onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
                     className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
@@ -321,7 +323,9 @@ export default function BuyCreditsPage() {
                 <div>
                   <input
                     type="text"
+                    name="editAddress"
                     placeholder="Address"
+                    autoComplete="street-address"
                     value={formData.address}
                     onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                     className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
@@ -330,14 +334,18 @@ export default function BuyCreditsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text"
+                    name="editCity"
                     placeholder="City"
+                    autoComplete="address-level2"
                     value={formData.city}
                     onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
                     className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
                   />
                   <input
                     type="text"
+                    name="editCountry"
                     placeholder="Country"
+                    autoComplete="country-name"
                     value={formData.country}
                     onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
                     className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
@@ -613,6 +621,8 @@ export default function BuyCreditsPage() {
                   <input
                     type="text"
                     id="fullName"
+                    name="fullName"
+                    autoComplete="name"
                     required
                     value={formData.fullName}
                     onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
@@ -627,6 +637,8 @@ export default function BuyCreditsPage() {
                   <input
                     type="text"
                     id="address"
+                    name="address"
+                    autoComplete="street-address"
                     required
                     value={formData.address}
                     onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
@@ -642,6 +654,8 @@ export default function BuyCreditsPage() {
                     <input
                       type="text"
                       id="city"
+                      name="city"
+                      autoComplete="address-level2"
                       required
                       value={formData.city}
                       onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
@@ -655,6 +669,8 @@ export default function BuyCreditsPage() {
                     <input
                       type="text"
                       id="country"
+                      name="country"
+                      autoComplete="country-name"
                       required
                       value={formData.country}
                       onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}

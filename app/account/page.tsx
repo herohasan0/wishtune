@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
-import { clientDb } from '@/lib/firebaseClient';
+import { clientDb, signInWithSessionToken, signOutFirebase } from '@/lib/firebaseClient';
 import Link from 'next/link';
 import Image from 'next/image';
 import Header from '../components/Header';
@@ -116,51 +116,74 @@ export default function AccountPage() {
   useEffect(() => {
     if (!session?.user?.id || activeTab !== 'songs') return;
 
-    const songsRef = collection(clientDb, 'songs');
-    // Note: client-side ordering requires an index. If it fails, we'll handle sorting in memory.
-    // We'll try to query simply by userId first to avoid index issues, then sort in memory.
-    const q = query(
-      songsRef,
-      where('userId', '==', session.user.id)
-    );
+    let unsubscribe: (() => void) | undefined;
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const updatedSongs: Song[] = [];
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        
-        // Convert timestamps
-        let createdAt = data.createdAt;
-        if (createdAt && typeof createdAt.toDate === 'function') {
-          createdAt = createdAt.toDate().toISOString();
-        } else if (createdAt && typeof createdAt === 'object' && 'seconds' in createdAt) {
-          createdAt = new Date(createdAt.seconds * 1000).toISOString();
-        } else if (typeof createdAt === 'string') {
-          // Keep as string
-        } else {
-          createdAt = new Date().toISOString(); // Fallback
+    // Sign in to Firebase Auth first, then set up listener
+    const setupRealtimeListener = async () => {
+      try {
+        // Authenticate with Firebase using NextAuth session
+        const signedIn = await signInWithSessionToken();
+
+        if (!signedIn) {
+          console.error('Failed to sign in to Firebase Auth');
+          return;
         }
 
-        updatedSongs.push({
-          id: doc.id,
-          ...data,
-          createdAt,
-        } as Song);
-      });
+        const songsRef = collection(clientDb, 'songs');
+        // Note: client-side ordering requires an index. If it fails, we'll handle sorting in memory.
+        // We'll try to query simply by userId first to avoid index issues, then sort in memory.
+        const q = query(
+          songsRef,
+          where('userId', '==', session.user.id)
+        );
 
-      // Sort by createdAt desc
-      updatedSongs.sort((a, b) => {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          const updatedSongs: Song[] = [];
 
-      // Update React Query cache
-      queryClient.setQueryData(['songs'], { songs: updatedSongs });
-    }, (error) => {
-      console.error("Error listening to song updates:", error);
-    });
+          snapshot.forEach((doc) => {
+            const data = doc.data();
 
-    return () => unsubscribe();
+            // Convert timestamps
+            let createdAt = data.createdAt;
+            if (createdAt && typeof createdAt.toDate === 'function') {
+              createdAt = createdAt.toDate().toISOString();
+            } else if (createdAt && typeof createdAt === 'object' && 'seconds' in createdAt) {
+              createdAt = new Date(createdAt.seconds * 1000).toISOString();
+            } else if (typeof createdAt === 'string') {
+              // Keep as string
+            } else {
+              createdAt = new Date().toISOString(); // Fallback
+            }
+
+            updatedSongs.push({
+              id: doc.id,
+              ...data,
+              createdAt,
+            } as Song);
+          });
+
+          // Sort by createdAt desc
+          updatedSongs.sort((a, b) => {
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          });
+
+          // Update React Query cache
+          queryClient.setQueryData(['songs'], { songs: updatedSongs });
+        }, (error) => {
+          console.error("Error listening to song updates:", error);
+        });
+      } catch (error) {
+        console.error('Error setting up real-time listener:', error);
+      }
+    };
+
+    setupRealtimeListener();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [session?.user?.id, activeTab, queryClient]);
 
   const songs = songsData?.songs ?? [];

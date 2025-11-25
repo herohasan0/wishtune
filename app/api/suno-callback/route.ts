@@ -1,13 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateSongStatusByTaskId, SongVariation } from '@/lib/songs';
+import { checkRateLimit, getClientIdentifier, RateLimitPresets } from '@/lib/ratelimit';
+import { verifyWebhookRequest } from '@/lib/webhook-security';
 
 /**
  * Callback endpoint for Suno AI
  * This endpoint receives notifications when song generation is complete
+ *
+ * Security Features:
+ * 1. Rate limiting to prevent abuse
+ * 2. Optional webhook signature verification (if SUNO_WEBHOOK_SECRET is set)
+ * 3. Request validation
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Apply rate limiting to prevent callback abuse
+    const identifier = getClientIdentifier(request);
+    const rateLimitResult = checkRateLimit(identifier, RateLimitPresets.WEBHOOK);
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests' },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'Retry-After': Math.ceil((rateLimitResult.reset - Date.now()) / 1000).toString(),
+          },
+        }
+      );
+    }
+
+    // Get raw body for signature verification
+    const bodyText = await request.text();
+    let body: any;
+
+    try {
+      body = JSON.parse(bodyText);
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid JSON payload' },
+        { status: 400 }
+      );
+    }
+
+    // Verify webhook signature if secret is configured
+    const webhookSecret = process.env.SUNO_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const verification = await verifyWebhookRequest(
+        request,
+        bodyText,
+        {
+          secret: webhookSecret,
+          signatureHeader: 'x-suno-signature', // Adjust based on Suno's actual header
+          algorithm: 'sha256',
+        }
+      );
+
+      if (!verification.valid) {
+        console.warn('Webhook signature verification failed:', verification.error);
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized webhook request' },
+          { status: 401 }
+        );
+      }
+    } else {
+      // Log warning if webhook secret is not configured
+      console.warn(
+        'SUNO_WEBHOOK_SECRET not configured. Webhook signatures are not being verified. ' +
+        'This is a security risk in production!'
+      );
+    }
+
     console.log('Suno callback received:', JSON.stringify(body));
 
     const { data, code } = body;
