@@ -20,17 +20,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { visitorId } = await request.json();
+
+    if (!visitorId) {
+      return NextResponse.json({ error: 'Visitor ID required' }, { status: 400 });
+    }
+
     const credits = await getUserCredits(session.user.id, session.user.email);
     
-    // Only merge if user hasn't created any songs yet (to avoid double counting)
-    if (credits.totalSongsCreated === 0) {
+    // Find anonymous songs for this visitor
+    const songsRef = db.collection('songs');
+    const anonymousSongsQuery = await songsRef
+      .where('visitorId', '==', visitorId)
+      .where('userId', '==', `anonymous_${visitorId}`)
+      .get();
+
+    if (anonymousSongsQuery.empty) {
+       return NextResponse.json({ success: true, message: 'No anonymous songs found' }, { status: 200 });
+    }
+
+    const batch = db.batch();
+    let songsMerged = 0;
+
+    anonymousSongsQuery.docs.forEach((doc) => {
+      batch.update(doc.ref, {
+        userId: session.user?.id,
+        updatedAt: FieldValue.serverTimestamp(),
+        // Keep visitorId for record, or remove it if you prefer
+      });
+      songsMerged++;
+    });
+
+    // Update user credits if they haven't created songs yet
+    // This logic might need adjustment depending on how you want to count merged songs
+    // For now, we'll just increment the count if it was 0
+    if (credits.totalSongsCreated === 0 && songsMerged > 0) {
       const creditRef = db.collection(CREDITS_COLLECTION).doc(session.user.id);
-      await creditRef.update({
-        freeSongsUsed: FieldValue.increment(1),
-        totalSongsCreated: FieldValue.increment(1),
+      batch.update(creditRef, {
+        freeSongsUsed: FieldValue.increment(songsMerged),
+        totalSongsCreated: FieldValue.increment(songsMerged),
         updatedAt: FieldValue.serverTimestamp(),
       });
     }
+
+    await batch.commit();
     
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {

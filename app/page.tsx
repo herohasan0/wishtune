@@ -26,10 +26,13 @@ interface CreditInfo {
   totalSongsCreated: number;
 }
 
+import { useFingerprint } from './hooks/useFingerprint';
+
 export default function Home() {
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
   const queryClient = useQueryClient();
+  const { visitorId } = useFingerprint();
   const [name, setName] = useState('');
   const [celebrationType, setCelebrationType] = useState('birthday');
   const [selectedStyle, setSelectedStyle] = useState('pop');
@@ -37,6 +40,13 @@ export default function Home() {
   const [nameError, setNameError] = useState(false);
   const [songsCreatedCount, setSongsCreatedCount] = useState<number>(0);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+
+  // Debug: Log visitorId
+  useEffect(() => {
+    if (visitorId) {
+      console.log('🔒 Fingerprint Visitor ID:', visitorId);
+    }
+  }, [visitorId]);
 
   // Fetch credits using React Query
   const {
@@ -58,7 +68,8 @@ export default function Home() {
   // Merge anonymous song mutation
   const mergeAnonymousSongMutation = useMutation({
     mutationFn: async () => {
-      const response = await axios.post('/api/merge-anonymous-song');
+      if (!visitorId) return;
+      const response = await axios.post('/api/merge-anonymous-song', { visitorId });
       return response.data;
     },
     onSuccess: () => {
@@ -95,6 +106,17 @@ export default function Home() {
     }
   }, [session, refetchCredits]);
 
+  // Check anonymous status from server
+  const { data: anonymousStatus } = useQuery({
+    queryKey: ['anonymousStatus', visitorId],
+    queryFn: async () => {
+      if (!visitorId) return null;
+      const response = await axios.get<{ used: boolean }>(`/api/check-anonymous-status?visitorId=${visitorId}`);
+      return response.data;
+    },
+    enabled: !!visitorId && !session?.user,
+  });
+
   // Load credits from API and merge anonymous song if needed
   useEffect(() => {
     if (sessionStatus === 'loading') return;
@@ -107,8 +129,14 @@ export default function Home() {
           mergeAnonymousSongMutation.mutate();
         }
       }
+    } else if (anonymousStatus?.used) {
+      // If server says used, update local state to reflect that
+      setSongsCreatedCount(1);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('wishtune_songs_created', '1');
+      }
     }
-  }, [session, sessionStatus, mergeAnonymousSongMutation]);
+  }, [session, sessionStatus, mergeAnonymousSongMutation, anonymousStatus]);
 
   // Determine if user can create a song
   const canCreateSong = () => {
@@ -166,6 +194,7 @@ export default function Home() {
         celebrationType: data.celebrationType,
         musicStyle: data.musicStyle,
         duration: data.duration,
+        visitorId,
       });
       return response.data;
     },

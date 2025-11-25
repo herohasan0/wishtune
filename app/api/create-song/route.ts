@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { canCreateSong } from '@/lib/credits';
 import { checkRateLimit, getClientIdentifier, RateLimitPresets } from '@/lib/ratelimit';
+import { db } from '@/lib/firebase';
+import { FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
 
 interface SongRequest {
@@ -9,6 +11,7 @@ interface SongRequest {
   celebrationType: string;
   musicStyle: string;
   duration: number;
+  visitorId?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: SongRequest = await request.json();
-    const { name, celebrationType, musicStyle, duration = 60 } = body;
+    const { name, celebrationType, musicStyle, duration = 60, visitorId } = body;
 
     if (!name || !celebrationType || !musicStyle) {
       return NextResponse.json(
@@ -50,8 +53,31 @@ export async function POST(request: NextRequest) {
 
     // Allow first song without authentication
     if (!session?.user?.id) {
-      // Check if anonymous song was already created (via header or cookie)
-      // For now, we'll allow it and let the frontend track it
+      if (!visitorId) {
+        return NextResponse.json(
+          { error: 'Visitor ID is required for anonymous usage' },
+          { status: 400 }
+        );
+      }
+
+      const anonymousUsageRef = db.collection('anonymous_usages').doc(visitorId);
+      const anonymousUsageSnap = await anonymousUsageRef.get();
+
+      if (anonymousUsageSnap.exists) {
+        return NextResponse.json(
+          { error: 'You have already used your free song. Please sign in to create more.' },
+          { status: 403 }
+        );
+      }
+
+      // Record usage
+      await anonymousUsageRef.set({
+        visitorId,
+        createdAt: FieldValue.serverTimestamp(),
+        songName: name,
+        celebrationType,
+        musicStyle,
+      });
     } else {
       // Check if user has credits (logged in users)
       const creditCheck = await canCreateSong(session.user.id, session.user.email);
@@ -137,6 +163,10 @@ export async function POST(request: NextRequest) {
     if (session?.user?.id) {
       const { saveSong } = await import('@/lib/songs');
       await saveSong(session.user.id, pendingSong, session.user.email);
+    } else if (visitorId) {
+      // Save anonymous song with special userId format
+      const { saveSong } = await import('@/lib/songs');
+      await saveSong(`anonymous_${visitorId}`, pendingSong, null, visitorId);
     }
 
     return NextResponse.json(pendingSong, { status: 200 });

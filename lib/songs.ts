@@ -31,6 +31,7 @@ export interface SongDocument {
   taskId?: string;
   status: string;
   message?: string;
+  visitorId?: string;
 }
 
 // Type for creating/updating songs that allows FieldValue for timestamps
@@ -55,7 +56,8 @@ export async function saveSong(
     status: string;
     message?: string;
   },
-  email?: string | null
+  email?: string | null,
+  visitorId?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const songRef = db.collection(SONGS_COLLECTION).doc(song.id);
@@ -76,6 +78,10 @@ export async function saveSong(
       message: song.message,
       updatedAt: FieldValue.serverTimestamp(),
     };
+
+    if (visitorId) {
+      songData.visitorId = visitorId;
+    }
 
     if (existingSong.exists) {
       // Update existing song
