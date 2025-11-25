@@ -58,11 +58,6 @@ export default function DurationSelector({
                 <span className={`text-xs ${isDisabled ? 'text-[#999]' : 'text-[#A18072]'}`}>
                   {duration.description}
                 </span>
-                {isDisabled && (
-                  <span className="absolute top-1 right-5 text-[10px] text-[#F18A24] font-medium mt-1">
-                    Sign in required
-                  </span>
-                )}
               </button>
               {isDisabled && (
                 <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#F18A24] text-white">
@@ -83,7 +78,7 @@ export default function DurationSelector({
         </svg>
         <span>
           {!isAuthenticated
-            ? 'Sign in to create longer songs • Longer songs take more time to generate'
+            ? 'Sign in to create longer songs'
             : 'Longer songs take more time to generate'
           }
         </span>
