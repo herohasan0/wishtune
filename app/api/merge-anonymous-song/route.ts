@@ -51,17 +51,9 @@ export async function POST(request: NextRequest) {
       songsMerged++;
     });
 
-    // Update user credits if they haven't created songs yet
-    // This logic might need adjustment depending on how you want to count merged songs
-    // For now, we'll just increment the count if it was 0
-    if (credits.totalSongsCreated === 0 && songsMerged > 0) {
-      const creditRef = db.collection(CREDITS_COLLECTION).doc(session.user.id);
-      batch.update(creditRef, {
-        freeSongsUsed: FieldValue.increment(songsMerged),
-        totalSongsCreated: FieldValue.increment(songsMerged),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    }
+    // Anonymous songs don't count towards totalSongsCreated
+    // They were created before sign-in, so user still has their 1 credit available
+    // No need to update credits here - user keeps their 1 credit
 
     await batch.commit();
     

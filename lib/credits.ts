@@ -3,14 +3,12 @@ import {
   FieldValue 
 } from 'firebase-admin/firestore';
 
-const FREE_SONGS_LIMIT = 2;
 const CREDITS_COLLECTION = 'userCredits';
 
 export interface UserCredits {
   userId: string;
   email?: string | null;
-  freeSongsUsed: number;
-  paidCredits: number;
+  paidCredits: number; // Every user gets 1 credit on sign-in, all songs cost 1 credit
   totalSongsCreated: number;
   createdAt: FirebaseFirestore.Timestamp | null;
   updatedAt: FirebaseFirestore.Timestamp | null;
@@ -36,16 +34,18 @@ export async function getUserCredits(userId: string, email?: string | null): Pro
     return data;
   }
 
-  // Initialize new user with default credits
+  // Initialize new user with 1 credit
+  // Every signed-in user gets 1 credit by default
   await creditRef.set({
     userId,
     email: email || null,
-    freeSongsUsed: 0,
-    paidCredits: 0,
+    paidCredits: 1, // Default: 1 credit for all new users
     totalSongsCreated: 0,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
+
+  console.log('✅ New user initialized with 1 credit:', userId);
 
   // Fetch the created document to get the actual timestamps
   const createdSnap = await creditRef.get();
@@ -53,22 +53,20 @@ export async function getUserCredits(userId: string, email?: string | null): Pro
 }
 
 /**
- * Check if user can create a song (allows 2 total songs, then requires paid credits)
+ * Check if user can create a song (requires 1 paid credit)
+ * Note: Anonymous users get 1 free song before sign-in (handled separately)
  */
 export async function canCreateSong(userId: string, email?: string | null): Promise<{ canCreate: boolean; reason?: string }> {
   const credits = await getUserCredits(userId, email);
-  
-  // Allow creation if user has created less than 2 songs total, or has paid credits
-  const hasFreeSongsRemaining = credits.totalSongsCreated < 2;
-  const hasPaidCredits = credits.paidCredits > 0;
 
-  if (hasFreeSongsRemaining || hasPaidCredits) {
+  // Check if user has paid credits
+  if (credits.paidCredits > 0) {
     return { canCreate: true };
   }
 
-  return { 
-    canCreate: false, 
-    reason: 'You have created 2 free songs. Please purchase credits to create more songs.' 
+  return {
+    canCreate: false,
+    reason: 'Insufficient credits. Please purchase credits to create more songs.'
   };
 }
 
@@ -86,16 +84,16 @@ export async function deductCreditForSong(userId: string, email?: string | null)
       const creditSnap = await transaction.get(creditRef);
       
       if (!creditSnap.exists) {
-        // Initialize user credits - first song is free
+        // Initialize user with 1 credit and deduct for this song
         transaction.set(creditRef, {
           userId,
           email: email || null,
-          freeSongsUsed: 1,
-          paidCredits: 0,
+          paidCredits: 0, // Started with 1, using it for this song
           totalSongsCreated: 1,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
+        console.log('✅ New user initialized and used 1 credit:', userId);
         return;
       }
 
@@ -108,31 +106,17 @@ export async function deductCreditForSong(userId: string, email?: string | null)
         });
       }
 
-      // Calculate if this song should use free credit or paid credit
-      const freeSongsRemaining = Math.max(0, 2 - credits.totalSongsCreated);
-      const useFreeCredit = freeSongsRemaining > 0;
-      const usePaidCredit = !useFreeCredit;
-
       // Check if user has enough credits
-      if (usePaidCredit && credits.paidCredits < 1) {
+      if (credits.paidCredits < 1) {
         throw new Error('Insufficient credits');
       }
 
-      // Update credits - always deduct exactly 1 credit
-      const updates: any = {
+      // Deduct 1 credit
+      transaction.update(creditRef, {
+        paidCredits: FieldValue.increment(-1),
         totalSongsCreated: FieldValue.increment(1),
         updatedAt: FieldValue.serverTimestamp(),
-      };
-
-      if (useFreeCredit) {
-        updates.freeSongsUsed = FieldValue.increment(1);
-      }
-
-      if (usePaidCredit) {
-        updates.paidCredits = FieldValue.increment(-1);
-      }
-
-      transaction.update(creditRef, updates);
+      });
     });
 
     return { success: true };
@@ -168,12 +152,12 @@ export async function addPaidCredits(userId: string, amount: number, email?: str
       await creditRef.set({
         userId,
         email: email || null,
-        freeSongsUsed: 0,
         paidCredits: amount,
         totalSongsCreated: 0,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      console.log('✅ New user initialized with purchased credits:', userId);
     }
 
     return { success: true };

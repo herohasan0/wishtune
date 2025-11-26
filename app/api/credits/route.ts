@@ -17,11 +17,9 @@ export async function GET(request: NextRequest) {
     }
 
     const credits = await getUserCredits(session.user.id, session.user.email);
-    
+
     return NextResponse.json({
       credits: {
-        freeSongsUsed: credits.freeSongsUsed,
-        freeSongsRemaining: Math.max(0, 2 - credits.freeSongsUsed),
         paidCredits: credits.paidCredits,
         totalSongsCreated: credits.totalSongsCreated,
       }

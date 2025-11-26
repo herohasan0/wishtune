@@ -20,8 +20,6 @@ import Divider from './components/Divider';
 import { trackSongCreationStep, trackFormSubmit, trackError, setupPageExitTracking } from './utils/analytics';
 
 interface CreditInfo {
-  freeSongsUsed: number;
-  freeSongsRemaining: number;
   paidCredits: number;
   totalSongsCreated: number;
 }
@@ -431,7 +429,7 @@ export default function Home() {
             <CreateButton 
               isLoading={createSongMutation.isPending} 
               onClick={handleCreate}
-              creditCost={session?.user && credits ? (credits.freeSongsRemaining > 0 ? 0 : 1) : undefined}
+              creditCost={session?.user && credits ? 1 : undefined}
             />
           )}
 
