@@ -28,7 +28,7 @@ export async function generateVideoWithAudio({
 }: VideoGeneratorOptions): Promise<{ blob: Blob; extension: string }> {
   return new Promise(async (resolve, reject) => {
     try {
-      console.log('[VideoGen] Starting video generation...');
+
 
       // Create canvas for video frames
       const canvas = document.createElement('canvas');
@@ -44,16 +44,16 @@ export async function generateVideoWithAudio({
       // Using slightly lower resolution for faster generation while maintaining quality
       canvas.width = 1080;
       canvas.height = 1920;
-      console.log('[VideoGen] Canvas created:', canvas.width, 'x', canvas.height);
+
 
       // Load the album cover image
-      console.log('[VideoGen] Loading image from:', imageUrl);
+
       const img = new Image();
       img.crossOrigin = 'anonymous';
 
       await new Promise<void>((resolveImg, rejectImg) => {
         img.onload = () => {
-          console.log('[VideoGen] Image loaded successfully');
+
           resolveImg();
         };
         img.onerror = (error) => {
@@ -64,16 +64,16 @@ export async function generateVideoWithAudio({
       });
 
       // Load audio
-      console.log('[VideoGen] Loading audio from:', audioUrl);
+
       const audioContext = new AudioContext();
       const audioResponse = await fetch(audioUrl);
       if (!audioResponse.ok) {
         throw new Error(`Failed to fetch audio: ${audioResponse.status}`);
       }
       const audioArrayBuffer = await audioResponse.arrayBuffer();
-      console.log('[VideoGen] Audio fetched, decoding...');
+
       const audioBuffer = await audioContext.decodeAudioData(audioArrayBuffer);
-      console.log('[VideoGen] Audio decoded, duration:', audioBuffer.duration);
+
 
       const audioDuration = duration || audioBuffer.duration;
 
@@ -290,11 +290,11 @@ export async function generateVideoWithAudio({
 
       // Draw initial frame
       drawFrame(0);
-      console.log('[VideoGen] Initial frame drawn on canvas');
+
 
       // Get canvas stream (20 fps - good balance between smooth animation and generation speed)
       const canvasStream = canvas.captureStream(20);
-      console.log('[VideoGen] Canvas stream created at 20 fps');
+
 
       // Get audio stream
       const audioElement = new Audio(audioUrl);
@@ -312,13 +312,13 @@ export async function generateVideoWithAudio({
       audioSource.connect(gainNode);
       gainNode.connect(audioContext.destination);
 
-      console.log('[VideoGen] Audio stream created with silent output');
+
 
       // Combine video and audio streams
       const videoTrack = canvasStream.getVideoTracks()[0];
       const audioTrack = destination.stream.getAudioTracks()[0];
       const combinedStream = new MediaStream([videoTrack, audioTrack]);
-      console.log('[VideoGen] Streams combined (video + audio)');
+
 
       // Setup MediaRecorder
       // Prefer MP4 for better Instagram compatibility
@@ -347,7 +347,7 @@ export async function generateVideoWithAudio({
         fileExtension = 'mp4';
       }
 
-      console.log('[VideoGen] Selected mime type:', mimeType, 'file extension:', fileExtension);
+
 
       const mediaRecorder = new MediaRecorder(combinedStream, {
         mimeType,
@@ -356,15 +356,15 @@ export async function generateVideoWithAudio({
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          console.log('[VideoGen] Data chunk received:', event.data.size, 'bytes');
+
           chunks.push(event.data);
         }
       };
 
       mediaRecorder.onstop = () => {
-        console.log('[VideoGen] Recording stopped, total chunks:', chunks.length);
+
         const videoBlob = new Blob(chunks, { type: mimeType });
-        console.log('[VideoGen] Video blob created:', videoBlob.size, 'bytes', 'extension:', fileExtension);
+
         audioElement.pause();
         audioContext.close();
         resolve({ blob: videoBlob, extension: fileExtension });
@@ -376,7 +376,7 @@ export async function generateVideoWithAudio({
       };
 
       // Start recording with timeslice to get data chunks during recording
-      console.log('[VideoGen] Starting recording for', audioDuration, 'seconds...');
+
       mediaRecorder.start(2000); // Request data every 2 seconds (reduces overhead)
 
       const startTime = Date.now();
@@ -395,7 +395,7 @@ export async function generateVideoWithAudio({
       }
 
       audioElement.play().then(() => {
-        console.log('[VideoGen] Audio playback started');
+
       }).catch((error) => {
         console.error('[VideoGen] Audio playback error:', error);
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -404,10 +404,10 @@ export async function generateVideoWithAudio({
 
       // Stop recording after audio duration
       const recordingDuration = Math.min(audioDuration * 1000 + 500, 150000); // Cap at 150 seconds max
-      console.log('[VideoGen] Will stop recording after', recordingDuration, 'ms');
+
 
       setTimeout(() => {
-        console.log('[VideoGen] Stopping recording...');
+
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         mediaRecorder.stop();
         videoTrack.stop();

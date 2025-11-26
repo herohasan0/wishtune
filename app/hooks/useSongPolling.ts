@@ -50,25 +50,42 @@ export function useSongPolling({ song, onSongUpdate }: UseSongPollingProps) {
     const setupRealtimeListener = async () => {
       try {
         // Authenticate with Firebase (tries to use existing auth or gets new token)
+
         const signedIn = await signInWithSessionToken();
 
+
         if (!signedIn) {
-          console.error('Failed to sign in to Firebase Auth for song polling');
+          console.warn('⚠️ Failed to sign in to Firebase Auth for song polling');
+          console.warn('📝 Song status updates will not be real-time for anonymous users.');
+          console.warn('💡 To enable real-time updates: Enable Anonymous auth in Firebase Console');
+          // Don't set up listener, but don't show error to user
           return;
         }
 
         setIsListening(true);
 
+        // Debug: Log auth info
+        const { clientAuth } = await import('@/lib/firebaseClient');
+        const currentUser = clientAuth.currentUser;
+
+
         // Create a query to find the song by taskId
         const songsRef = collection(clientDb, 'songs');
         const q = query(songsRef, where('taskId', '==', song.taskId), limit(1));
+
+
 
         // Set up real-time listener
         unsubscribe = onSnapshot(
           q,
           (snapshot) => {
+
+
+
+
             if (!snapshot.empty) {
               const docData = snapshot.docs[0].data();
+
 
               // Check if status has changed to complete or failed
               if (docData.status === 'complete' && docData.variations) {
@@ -85,10 +102,14 @@ export function useSongPolling({ song, onSongUpdate }: UseSongPollingProps) {
                 alert('Song generation failed. Please try again.');
               }
               // If still pending/processing, listener stays active
+            } else {
+              console.warn('⚠️ No documents found matching taskId:', song.taskId);
             }
           },
-          (error) => {
-            console.error('Error listening to song updates:', error);
+          (error: any) => {
+            console.error('❌ Error listening to song updates:', error);
+            console.error('Error code:', error?.code);
+            console.error('Error message:', error?.message);
             setIsListening(false);
             // Optionally show user-friendly error or fallback to polling
           }

@@ -25,10 +25,7 @@ export async function POST(request: NextRequest) {
     const sunoApiBaseUrl = process.env.SUNO_API_BASE_URL || 'https://api.sunoapi.org/api/v1';
     const endpoint = `${sunoApiBaseUrl}/generate/get-timestamped-lyrics`;
 
-    console.log('[get-lyrics] Fetching timestamped lyrics');
-    console.log('[get-lyrics] Endpoint:', endpoint);
-    console.log('[get-lyrics] TaskId:', taskId);
-    console.log('[get-lyrics] AudioId:', audioId);
+
 
     try {
       const response = await axios.post(
@@ -45,7 +42,7 @@ export async function POST(request: NextRequest) {
         }
       );
 
-      console.log('[get-lyrics] SUCCESS! Response:', JSON.stringify(response.data, null, 2));
+
       return NextResponse.json(response.data, { status: 200 });
     } catch (error) {
       console.error('[get-lyrics] Failed to fetch lyrics:', error);

@@ -92,24 +92,30 @@ function SongsPageContent() {
   useEffect(() => {
     // Mark as mounted to avoid hydration mismatch
     setIsMounted(true);
-    
+
     // Read from sessionStorage after mount (client-side only)
     if (typeof window !== 'undefined') {
+
       const songData = sessionStorage.getItem('wishtune_new_song');
+
+
       if (songData) {
         try {
           const parsedSong = JSON.parse(songData);
+
           setSong(parsedSong);
           // Clear sessionStorage after reading
           sessionStorage.removeItem('wishtune_new_song');
           // Reset credit deducted flag for new song
           setCreditDeducted(false);
         } catch (error) {
+          console.error('❌ Error parsing song data:', error);
           sessionStorage.removeItem('wishtune_new_song');
           router.push('/');
         }
       } else {
         // No song data, redirect to home
+        console.warn('⚠️ No song data found, redirecting to home');
         router.push('/');
       }
     }

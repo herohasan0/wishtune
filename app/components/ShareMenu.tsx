@@ -102,7 +102,7 @@ export default function ShareMenu({
   };
 
   const handleInstagramStory = async () => {
-    console.log('[ShareMenu] Instagram Story clicked');
+
 
     // Check if we have the required data
     if (!audioUrl || !imageUrl) {
@@ -118,18 +118,18 @@ export default function ShareMenu({
       return;
     }
 
-    console.log('[ShareMenu] Starting video generation...');
+
     setIsGenerating(true);
     setGenerationError(null);
 
     try {
       // Fetch lyrics if available (requires both taskId and variationId/audioId)
-      console.log('[ShareMenu] Fetching lyrics for variation ID:', variationId, 'taskId:', taskId);
+
       let lyricsWords: Array<{ word: string; startS: number; endS: number }> | undefined;
 
       if (taskId && variationId) {
         try {
-          console.log('[ShareMenu] Making POST request to /api/get-lyrics');
+
 
           const lyricsResponse = await fetch('/api/get-lyrics', {
             method: 'POST',
@@ -142,17 +142,15 @@ export default function ShareMenu({
             }),
           });
 
-          console.log('[ShareMenu] Lyrics response status:', lyricsResponse.status, lyricsResponse.statusText);
+
 
           if (lyricsResponse.ok) {
             const lyricsData = await lyricsResponse.json();
-            console.log('[ShareMenu] ===== RAW LYRICS RESPONSE =====');
-            console.log(JSON.stringify(lyricsData, null, 2));
-            console.log('[ShareMenu] ===== END RAW RESPONSE =====');
+
 
             // Parse Suno API response format: { code: 200, msg: "success", data: { alignedWords: [...] } }
             if (lyricsData && lyricsData.data && lyricsData.data.alignedWords) {
-              console.log('[ShareMenu] Found alignedWords:', lyricsData.data.alignedWords.length, 'words');
+
 
               const alignedWords = lyricsData.data.alignedWords;
               const words: Array<{ word: string; startS: number; endS: number }> = [];
@@ -176,36 +174,24 @@ export default function ShareMenu({
               }
 
               lyricsWords = words;
-              console.log('[ShareMenu] Parsed', lyricsWords.length, 'words with timestamps');
-              console.log('[ShareMenu] First 5 words:');
-              lyricsWords.slice(0, 5).forEach((word, i) => {
-                console.log(`  ${i + 1}. [${word.startS.toFixed(2)}s - ${word.endS.toFixed(2)}s] "${word.word}"`);
-              });
+
             } else {
-              console.log('[ShareMenu] Unexpected response format, no alignedWords found');
+
             }
           } else {
             const errorText = await lyricsResponse.text();
-            console.log('[ShareMenu] Lyrics request failed with status:', lyricsResponse.status);
-            console.log('[ShareMenu] Error response:', errorText);
+
           }
         } catch (lyricsError) {
           console.error('[ShareMenu] Exception while fetching lyrics:', lyricsError);
           console.error('[ShareMenu] Error stack:', lyricsError instanceof Error ? lyricsError.stack : 'No stack trace');
         }
       } else {
-        console.log('[ShareMenu] Skipping lyrics fetch - missing taskId or variationId');
+
       }
 
       // Generate video with album cover and audio
-      console.log('[ShareMenu] Calling generateVideoWithAudio with:', {
-        imageUrl,
-        audioUrl,
-        songName,
-        variationTitle,
-        hasLyrics: !!lyricsWords,
-        lyricsWordCount: lyricsWords?.length || 0,
-      });
+
 
       const { blob: videoBlob, extension } = await generateVideoWithAudio({
         imageUrl,
@@ -215,16 +201,16 @@ export default function ShareMenu({
         lyricsWords,
       });
 
-      console.log('[ShareMenu] Video generated successfully, blob size:', videoBlob.size, 'format:', extension);
+
 
       // Create file from blob with correct extension
       const fileName = `${songName}-${variationTitle}-story.${extension}`;
-      console.log('[ShareMenu] Creating video file:', fileName);
+
 
       // Download the video automatically
       // Note: We can't use Web Share API here because the async video generation
       // breaks the user gesture chain required by the API
-      console.log('[ShareMenu] Downloading video...');
+
       const url = URL.createObjectURL(videoBlob);
       const link = document.createElement('a');
       link.href = url;
@@ -234,7 +220,7 @@ export default function ShareMenu({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      console.log('[ShareMenu] Video downloaded successfully');
+
 
       // Show success message with instructions
       const formatName = extension.toUpperCase();
@@ -257,7 +243,7 @@ export default function ShareMenu({
           : 'Failed to generate video. Please try again.'
       );
     } finally {
-      console.log('[ShareMenu] Video generation process completed');
+
       setIsGenerating(false);
     }
   };

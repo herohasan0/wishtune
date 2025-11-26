@@ -1,6 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
-import { getAuth, signInWithCustomToken, Auth } from 'firebase/auth';
+import { getAuth, signInWithCustomToken, signInAnonymously, Auth } from 'firebase/auth';
 
 // Firebase client configuration (safe to expose in browser)
 const firebaseConfig = {
@@ -30,6 +30,7 @@ if (typeof window !== 'undefined') {
 
 /**
  * Sign in to Firebase Auth using custom token from NextAuth session
+ * For anonymous users, signs in anonymously
  * This allows Firestore security rules to work properly
  */
 export async function signInWithSessionToken(): Promise<boolean> {
@@ -47,6 +48,25 @@ export async function signInWithSessionToken(): Promise<boolean> {
     const response = await fetch('/api/firebase-token');
 
     if (!response.ok) {
+      // If not authenticated (401), sign in anonymously
+      if (response.status === 401) {
+
+        try {
+          await signInAnonymously(auth);
+
+          return true;
+        } catch (anonymousError: any) {
+          // Check if anonymous auth is disabled
+          if (anonymousError?.code === 'auth/admin-restricted-operation') {
+            console.warn('⚠️ Anonymous authentication is disabled in Firebase.');
+            console.warn('👉 Enable it in Firebase Console: Authentication > Sign-in method > Anonymous');
+            console.warn('📝 For now, anonymous users won\'t have real-time updates.');
+            return false;
+          }
+          throw anonymousError;
+        }
+      }
+
       console.error('Failed to fetch Firebase token:', response.status);
       return false;
     }
@@ -55,6 +75,7 @@ export async function signInWithSessionToken(): Promise<boolean> {
 
     // Sign in with custom token
     await signInWithCustomToken(auth, token);
+
 
     return true;
   } catch (error) {

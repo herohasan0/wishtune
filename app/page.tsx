@@ -44,7 +44,7 @@ export default function Home() {
   // Debug: Log visitorId
   useEffect(() => {
     if (visitorId) {
-      console.log('🔒 Fingerprint Visitor ID:', visitorId);
+
     }
   }, [visitorId]);
 
@@ -201,26 +201,45 @@ export default function Home() {
     onSuccess: (newSong) => {
       // Credits and localStorage count will be updated when song is successfully created (status = 'complete')
       // This happens in the songs page when the song becomes complete
-      
+
       trackFormSubmit('song_creation', true);
-      
+
+      // Determine if user is logged in
+      const isLoggedIn = sessionStatus === 'authenticated' && session?.user?.id;
+      const targetPage = isLoggedIn ? '/account' : '/songs';
+
+
+
+
+
       // Store song data in sessionStorage instead of URL to keep URL clean
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem('wishtune_new_song', JSON.stringify(newSong));
-        // Use window.location.href for full page navigation to ensure sessionStorage is available
-        window.location.href = '/account';
+        try {
+          sessionStorage.setItem('wishtune_new_song', JSON.stringify(newSong));
+
+
+          // Use window.location.href for full page navigation to ensure sessionStorage is available
+          window.location.href = targetPage;
+        } catch (error) {
+          console.error('❌ Error storing song data:', error);
+          // Fallback: try to navigate anyway
+          router.push(targetPage);
+        }
       } else {
         // Fallback to router.push if window is not available (shouldn't happen in browser)
-        router.push('/account');
+        router.push(targetPage);
       }
     },
     onError: (error) => {
+      console.error('❌ Song creation error:', error);
       trackFormSubmit('song_creation', false);
       trackError('song_creation_error', error instanceof Error ? error.message : 'Unknown error');
-      
+
       if (axios.isAxiosError(error) && error.response?.data?.error) {
+        console.error('API Error:', error.response.data.error);
         alert(error.response.data.error);
       } else {
+        console.error('Unknown Error:', error);
         alert(error instanceof Error ? error.message : 'Failed to create song. Please try again.');
       }
     },
@@ -237,10 +256,17 @@ export default function Home() {
       setTimeout(() => nameInput?.focus(), 500);
       return;
     }
-    
+
+    // For anonymous users, ensure visitorId is available
+    if (!session?.user && !visitorId) {
+      alert('Please wait a moment while we set things up...');
+      trackError('validation_error', 'VisitorId not ready for anonymous user');
+      return;
+    }
+
     // Clear any previous error
     setNameError(false);
-    
+
     if (celebrationType && selectedStyle) {
       trackSongCreationStep('create_clicked', {
         celebration_type: celebrationType,

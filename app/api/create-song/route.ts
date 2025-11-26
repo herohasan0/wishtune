@@ -89,48 +89,59 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const apiKey = process.env.SUNO_API_KEY;
-    if (!apiKey) {
-      console.error('SUNO_API_KEY is not defined');
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      );
-    }
+    // Check if mock mode is enabled for testing
+    const useMockMode = process.env.USE_MOCK_SUNO === 'true';
+    let taskId: string;
 
-    // Construct prompt (max 500 chars for non-custom mode)
-    const prompt = `A ${musicStyle} ${celebrationType} song for ${name}. Start with "${name}" in the first line. Uplifting, ${duration} seconds long. Include ${name}'s name throughout. Full track with verse, chorus, bridge. ${musicStyle} style.`;
+    if (useMockMode) {
+      // Mock mode: generate a fake taskId without calling Suno API
+      taskId = `mock-task-${Date.now()}`;
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const callBackUrl = `${baseUrl}/api/suno-callback${session?.user?.id ? `?userId=${session.user.id}` : ''}`;
-    const sunoApiBaseUrl = process.env.SUNO_API_BASE_URL || 'https://api.sunoapi.org/api/v1';
-
-    // Call Suno API
-    const sunoResponse = await axios.post(
-      `${sunoApiBaseUrl}/generate`,
-      {
-        prompt: prompt,
-        customMode: false,
-        model: 'V5',
-        instrumental: false,
-        callBackUrl: callBackUrl,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
+    } else {
+      // Production mode: call Suno API
+      const apiKey = process.env.SUNO_API_KEY;
+      if (!apiKey) {
+        console.error('SUNO_API_KEY is not defined');
+        return NextResponse.json(
+          { error: 'Server configuration error' },
+          { status: 500 }
+        );
       }
-    );
 
-    const taskId = sunoResponse.data?.data?.taskId;
+      // Construct prompt (max 500 chars for non-custom mode)
+      const prompt = `A ${musicStyle} ${celebrationType} song for ${name}. Start with "${name}" in the first line. Uplifting, ${duration} seconds long. Include ${name}'s name throughout. Full track with verse, chorus, bridge. ${musicStyle} style.`;
 
-    if (!taskId) {
-      console.error('Failed to get taskId from Suno API', sunoResponse.data);
-      return NextResponse.json(
-        { error: 'Failed to initiate song generation' },
-        { status: 500 }
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const callBackUrl = `${baseUrl}/api/suno-callback${session?.user?.id ? `?userId=${session.user.id}` : ''}`;
+      const sunoApiBaseUrl = process.env.SUNO_API_BASE_URL || 'https://api.sunoapi.org/api/v1';
+
+      // Call Suno API
+      const sunoResponse = await axios.post(
+        `${sunoApiBaseUrl}/generate`,
+        {
+          prompt: prompt,
+          customMode: false,
+          model: 'V5',
+          instrumental: false,
+          callBackUrl: callBackUrl,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
       );
+
+      taskId = sunoResponse.data?.data?.taskId;
+
+      if (!taskId) {
+        console.error('Failed to get taskId from Suno API', sunoResponse.data);
+        return NextResponse.json(
+          { error: 'Failed to initiate song generation' },
+          { status: 500 }
+        );
+      }
     }
 
     // Return pending song with taskId for polling
@@ -161,12 +172,33 @@ export async function POST(request: NextRequest) {
 
     // Save pending song to database immediately so callback can find it
     if (session?.user?.id) {
+
       const { saveSong } = await import('@/lib/songs');
-      await saveSong(session.user.id, pendingSong, session.user.email);
+      const saveResult = await saveSong(session.user.id, pendingSong, session.user.email);
+
+
+      if (!saveResult.success) {
+        console.error('❌ Failed to save song:', saveResult.error);
+        return NextResponse.json(
+          { error: `Failed to save song: ${saveResult.error}` },
+          { status: 500 }
+        );
+      }
     } else if (visitorId) {
       // Save anonymous song with special userId format
+
+
       const { saveSong } = await import('@/lib/songs');
-      await saveSong(`anonymous_${visitorId}`, pendingSong, null, visitorId);
+      const saveResult = await saveSong(`anonymous_${visitorId}`, pendingSong, null, visitorId);
+
+
+      if (!saveResult.success) {
+        console.error('❌ Failed to save anonymous song:', saveResult.error);
+        return NextResponse.json(
+          { error: `Failed to save song: ${saveResult.error}` },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json(pendingSong, { status: 200 });

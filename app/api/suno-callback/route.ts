@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Suno callback received:', JSON.stringify(body));
+
 
     const { data, code } = body;
 
