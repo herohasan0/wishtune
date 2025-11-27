@@ -1,23 +1,35 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getUserSongs } from '@/lib/songs';
 import type { Timestamp } from 'firebase-admin/firestore';
 
 /**
- * GET /api/songs - Get all songs for the authenticated user
+ * GET /api/songs - Get all songs for the authenticated user or anonymous user
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
-    if (!session?.user?.id) {
+    const { searchParams } = new URL(request.url);
+    const visitorId = searchParams.get('visitorId');
+
+    // Determine userId based on authentication status
+    let userId: string;
+
+    if (session?.user?.id) {
+      // Authenticated user
+      userId = session.user.id;
+    } else if (visitorId) {
+      // Anonymous user with visitorId
+      userId = `anonymous_${visitorId}`;
+    } else {
+      // No authentication and no visitorId
       return NextResponse.json(
-        { error: 'Authentication required' },
+        { error: 'Authentication or visitor ID required' },
         { status: 401 }
       );
     }
 
-    const songs = await getUserSongs(session.user.id);
+    const songs = await getUserSongs(userId);
     
     // Convert Firestore timestamps to ISO strings for JSON serialization
     const serializedSongs = songs.map((song) => {

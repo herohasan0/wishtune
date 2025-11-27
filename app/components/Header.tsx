@@ -49,12 +49,20 @@ export default function Header() {
               </span>
             </Link>
           ) : (
-            <button
-              onClick={() => signIn('google')}
-              className="rounded-full bg-[#F18A24] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#E07212]"
-            >
-              Log In
-            </button>
+            <>
+              <Link
+                href="/account"
+                className="text-sm font-medium text-[#2F1E14] hover:text-[#F18A24] transition-colors"
+              >
+                My Songs
+              </Link>
+              <button
+                onClick={() => signIn('google')}
+                className="rounded-full bg-[#F18A24] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#E07212]"
+              >
+                Log In
+              </button>
+            </>
           )}
         </div>
       </div>

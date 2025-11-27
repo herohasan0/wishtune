@@ -14,6 +14,7 @@ import BackgroundBlobs from '../components/BackgroundBlobs';
 import SongPlayer from '../components/SongPlayer';
 import ShareMenu from '../components/ShareMenu';
 import { celebrationTypeLabels } from '../utils/constants';
+import { useFingerprint } from '../hooks/useFingerprint';
 
 interface CreditInfo {
   freeSongsUsed: number;
@@ -50,6 +51,7 @@ export default function AccountPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { visitorId, isLoading: fingerprintLoading } = useFingerprint();
   const [activeTab, setActiveTab] = useState<TabType>('songs');
   const [playingVariationId, setPlayingVariationId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -91,14 +93,6 @@ export default function AccountPage() {
     }
   };
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (!session?.user) {
-      router.push('/');
-    }
-  }, [session, status, router]);
 
   // Fetch credits using React Query
   const {
@@ -130,17 +124,22 @@ export default function AccountPage() {
     error: songsError,
     refetch: refetchSongs,
   } = useQuery<{ songs: Song[] }>({
-    queryKey: ['songs'],
+    queryKey: ['songs', visitorId],
     queryFn: async () => {
-      const response = await axios.get<{ songs: Song[] }>('/api/songs');
+      const url = session?.user?.id
+        ? '/api/songs'
+        : `/api/songs?visitorId=${visitorId}`;
+      const response = await axios.get<{ songs: Song[] }>(url);
       return response.data;
     },
-    enabled: !!session?.user && activeTab === 'songs',
+    enabled: (!!session?.user || (!fingerprintLoading && !!visitorId)) && activeTab === 'songs',
     staleTime: Infinity, // Don't refetch automatically since we use real-time listener
   });
 
   // Real-time updates for songs
   useEffect(() => {
+    // Only set up real-time listener for authenticated users
+    // Anonymous users will rely on periodic refetches
     if (!session?.user?.id || activeTab !== 'songs') return;
 
     let unsubscribe: (() => void) | undefined;
@@ -194,8 +193,8 @@ export default function AccountPage() {
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
           });
 
-          // Update React Query cache
-          queryClient.setQueryData(['songs'], { songs: updatedSongs });
+          // Update React Query cache with visitorId key for consistency
+          queryClient.setQueryData(['songs', visitorId], { songs: updatedSongs });
         }, (error) => {
           console.error("Error listening to song updates:", error);
         });
@@ -211,7 +210,18 @@ export default function AccountPage() {
         unsubscribe();
       }
     };
-  }, [session?.user?.id, activeTab, queryClient]);
+  }, [session?.user?.id, activeTab, queryClient, visitorId]);
+
+  // For anonymous users, poll for updates every 5 seconds when viewing songs
+  useEffect(() => {
+    if (session?.user?.id || activeTab !== 'songs' || !visitorId) return;
+
+    const interval = setInterval(() => {
+      refetchSongs();
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [session?.user?.id, activeTab, visitorId, refetchSongs]);
 
   const songs = songsData?.songs ?? [];
   const songsErrorMsg = songsError
@@ -224,7 +234,7 @@ export default function AccountPage() {
       : 'Failed to load songs'
     : null;
 
-  if (status === 'loading' || creditsLoading) {
+  if (status === 'loading' || (session?.user && creditsLoading)) {
     return (
       <main className="relative min-h-screen px-4 py-6 text-[#3F2A1F] sm:py-10">
         <BackgroundBlobs />
@@ -236,10 +246,6 @@ export default function AccountPage() {
         </div>
       </main>
     );
-  }
-
-  if (!session?.user) {
-    return null; // Will redirect
   }
 
   return (
@@ -262,38 +268,46 @@ export default function AccountPage() {
         </Link>
 
         <div className="text-center">
-          <h1 className="text-4xl font-extrabold text-[#2F1E14] sm:text-5xl">My Account</h1>
-          <p className="mt-2 text-[#8F6C54]">Manage your account and view your credits</p>
+          <h1 className="text-4xl font-extrabold text-[#2F1E14] sm:text-5xl">
+            {session?.user ? 'My Account' : 'My Songs'}
+          </h1>
+          <p className="mt-2 text-[#8F6C54]">
+            {session?.user
+              ? 'Manage your account and view your credits'
+              : 'View your songs and track their progress'}
+          </p>
         </div>
 
-        {/* User Profile Section */}
-        <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-6 shadow-sm">
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
-            {session.user.image && (
-              <Image
-                src={session.user.image}
-                alt={session.user.name || 'User'}
-                width={80}
-                height={80}
-                className="rounded-full"
-              />
-            )}
-            <div className="flex-1 text-center sm:text-left">
-              <h2 className="text-2xl font-bold text-[#2F1E14]">
-                {session.user.name || 'User'}
-              </h2>
-              {session.user.email && (
-                <p className="mt-1 text-sm text-[#8F6C54]">{session.user.email}</p>
+        {/* User Profile Section - Only for logged-in users */}
+        {session?.user && (
+          <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-6 shadow-sm">
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
+              {session.user.image && (
+                <Image
+                  src={session.user.image}
+                  alt={session.user.name || 'User'}
+                  width={80}
+                  height={80}
+                  className="rounded-full"
+                />
               )}
+              <div className="flex-1 text-center sm:text-left">
+                <h2 className="text-2xl font-bold text-[#2F1E14]">
+                  {session.user.name || 'User'}
+                </h2>
+                {session.user.email && (
+                  <p className="mt-1 text-sm text-[#8F6C54]">{session.user.email}</p>
+                )}
+              </div>
+              <button
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="rounded-lg border border-[#8F6C54]/30 bg-white/50 px-4 py-2 text-sm font-medium text-[#2F1E14] hover:bg-[#F3E4D6] transition-colors"
+              >
+                Log Out
+              </button>
             </div>
-            <button
-              onClick={() => signOut({ callbackUrl: '/' })}
-              className="rounded-lg border border-[#8F6C54]/30 bg-white/50 px-4 py-2 text-sm font-medium text-[#2F1E14] hover:bg-[#F3E4D6] transition-colors"
-            >
-              Log Out
-            </button>
           </div>
-        </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-2 border-b border-[#F3E4D6]">
@@ -307,23 +321,26 @@ export default function AccountPage() {
           >
             My Songs
           </button>
-          <button
-            onClick={() => setActiveTab('credits')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'credits'
-                ? 'border-b-2 border-[#F18A24] text-[#2F1E14]'
-                : 'text-[#8F6C54] hover:text-[#2F1E14]'
-            }`}
-          >
-            Credits
-          </button>
+          {/* Only show Credits tab for logged-in users */}
+          {session?.user && (
+            <button
+              onClick={() => setActiveTab('credits')}
+              className={`px-6 py-3 font-semibold transition-colors ${
+                activeTab === 'credits'
+                  ? 'border-b-2 border-[#F18A24] text-[#2F1E14]'
+                  : 'text-[#8F6C54] hover:text-[#2F1E14]'
+              }`}
+            >
+              Credits
+            </button>
+          )}
         </div>
 
         {/* My Songs Tab */}
         {activeTab === 'songs' && (
           <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-6 shadow-sm">
-            
-            {songsLoading ? (
+
+            {(songsLoading || (!session?.user && fingerprintLoading)) ? (
               <div className="text-center py-8 text-[#8F6C54]">
                 Loading your songs...
               </div>

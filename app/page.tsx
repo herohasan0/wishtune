@@ -196,19 +196,13 @@ export default function Home() {
 
       trackFormSubmit('song_creation', true);
 
-      // Determine if user is logged in
-      const isLoggedIn = sessionStatus === 'authenticated' && session?.user?.id;
-      const targetPage = isLoggedIn ? '/account' : '/songs';
-
-
-
-
+      // Redirect all users (both logged-in and anonymous) to /account
+      const targetPage = '/account';
 
       // Store song data in sessionStorage instead of URL to keep URL clean
       if (typeof window !== 'undefined') {
         try {
           sessionStorage.setItem('wishtune_new_song', JSON.stringify(newSong));
-
 
           // Use window.location.href for full page navigation to ensure sessionStorage is available
           window.location.href = targetPage;
