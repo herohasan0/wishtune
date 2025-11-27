@@ -17,9 +17,11 @@ interface SongRequest {
 
 export async function POST(request: NextRequest) {
   let visitorIdForLogging: string | undefined;
+  let userId: string | undefined;
 
   try {
     const session = await auth();
+    userId = session?.user?.id;
 
     // Apply rate limiting (3 songs per minute per user/IP)
     const identifier = getClientIdentifier(request, session?.user?.id);
@@ -289,7 +291,7 @@ export async function POST(request: NextRequest) {
     // Log failed API calls too
     logApiUsage({
       endpoint: 'create-song',
-      userId: session?.user?.id,
+      userId: userId,
       visitorId: visitorIdForLogging,
       timestamp: new Date(),
       cost: 0,
