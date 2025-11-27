@@ -243,11 +243,11 @@ export default function AccountPage() {
   }
 
   return (
-    <main className="relative min-h-screen px-4 py-6 text-[#3F2A1F] sm:py-10">
+    <main className="relative min-h-screen text-[#3F2A1F]">
       <BackgroundBlobs />
       <Header />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col gap-8">
+      <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col gap-8 px-4">
         {/* iOS-style Back Button */}
         <Link
           href="/"

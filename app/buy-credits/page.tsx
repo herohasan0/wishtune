@@ -267,10 +267,10 @@ export default function BuyCreditsPage() {
   // Show payment form if we have a response
   if (formResponse) {
     return (
-      <main className="relative min-h-screen px-4 py-6 text-[#3F2A1F] sm:py-10">
+      <main className="relative min-h-screen text-[#3F2A1F]">
         <BackgroundBlobs />
         <Header />
-        <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-8">
+        <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-8 px-4">
           <button
             onClick={handleCloseForm}
             className="flex items-center gap-2 self-start -ml-2 px-2 py-2 hover:opacity-70 transition-opacity"
@@ -430,11 +430,11 @@ export default function BuyCreditsPage() {
   }
 
   return (
-    <main className="relative min-h-screen px-4 py-6 text-[#3F2A1F] sm:py-10">
+    <main className="relative min-h-screen text-[#3F2A1F]">
       <BackgroundBlobs />
       <Header />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-8">
+      <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-8 px-4">
         {/* Back Button */}
         <Link
           href="/account"
