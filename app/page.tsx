@@ -39,12 +39,6 @@ export default function Home() {
   const [songsCreatedCount, setSongsCreatedCount] = useState<number>(0);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
 
-  // Debug: Log visitorId
-  useEffect(() => {
-    if (visitorId) {
-
-    }
-  }, [visitorId]);
 
   // Fetch credits using React Query
   const {
@@ -410,6 +404,7 @@ export default function Home() {
                 <Divider />
 
                 <DurationSelector
+                  isAuthenticated={session !== null} 
                   durations={durationOptions}
                   selectedDuration={selectedDuration}
                   onSelect={(duration) => {
