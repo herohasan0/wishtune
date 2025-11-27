@@ -532,7 +532,7 @@ export default function AccountPage() {
                                   <div className="flex flex-col gap-1 text-xs font-medium text-[#B48B70]">
                                     <span>Processing...</span>
                                     <span className="text-[#C07B3F]">
-                                      Usually under a minute
+                                      Usually takes 2-3 minutes
                                     </span>
                                   </div>
                                 )}

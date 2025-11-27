@@ -87,6 +87,18 @@ export async function POST(request: NextRequest) {
           { status: 403 }
         );
       }
+
+      // Deduct credit
+      const { deductCreditForSong } = await import('@/lib/credits');
+      const deductionResult = await deductCreditForSong(session.user.id, session.user.email);
+      
+      if (!deductionResult.success) {
+        console.error('Failed to deduct credit:', deductionResult.error);
+        return NextResponse.json(
+          { error: 'Failed to process credit deduction. Please try again.' },
+          { status: 500 }
+        );
+      }
     }
 
     // Check if mock mode is enabled for testing
@@ -96,6 +108,32 @@ export async function POST(request: NextRequest) {
     if (useMockMode) {
       // Mock mode: generate a fake taskId without calling Suno API
       taskId = `mock-task-${Date.now()}`;
+
+      // Simulate async completion in mock mode
+      (async () => {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        
+        const { updateSongStatusByTaskId } = await import('@/lib/songs');
+        await updateSongStatusByTaskId(taskId, 'complete', [
+          {
+            id: `mock-var-1-${Date.now()}`,
+            title: 'Mock Version 1',
+            duration: '1:30',
+            status: 'complete',
+            audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', // Sample MP3
+            imageUrl: 'https://picsum.photos/200',
+          },
+          {
+            id: `mock-var-2-${Date.now()}`,
+            title: 'Mock Version 2',
+            duration: '1:45',
+            status: 'complete',
+            audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', // Sample MP3
+            imageUrl: 'https://picsum.photos/200',
+          }
+        ]);
+        console.log('✅ Mock song generation completed for task:', taskId);
+      })();
 
     } else {
       // Production mode: call Suno API
