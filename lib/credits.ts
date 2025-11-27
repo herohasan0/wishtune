@@ -45,7 +45,6 @@ export async function getUserCredits(userId: string, email?: string | null): Pro
     updatedAt: FieldValue.serverTimestamp(),
   });
 
-  console.log('✅ New user initialized with 1 credit:', userId);
 
   // Fetch the created document to get the actual timestamps
   const createdSnap = await creditRef.get();
@@ -93,7 +92,6 @@ export async function deductCreditForSong(userId: string, email?: string | null)
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });
-        console.log('✅ New user initialized and used 1 credit:', userId);
         return;
       }
 
@@ -157,7 +155,6 @@ export async function addPaidCredits(userId: string, amount: number, email?: str
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
-      console.log('✅ New user initialized with purchased credits:', userId);
     }
 
     return { success: true };

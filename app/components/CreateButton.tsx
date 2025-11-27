@@ -2,12 +2,21 @@ interface CreateButtonProps {
   isLoading: boolean;
   onClick: () => void;
   creditCost?: number;
+  disabled?: boolean;
+  disabledText?: string;
 }
 
-export default function CreateButton({ isLoading, onClick, creditCost }: CreateButtonProps) {
+export default function CreateButton({
+  isLoading,
+  onClick,
+  creditCost,
+  disabled = false,
+  disabledText = 'Insufficient Credits'
+}: CreateButtonProps) {
   const getButtonText = () => {
     if (isLoading) return null;
-    
+    if (disabled) return disabledText;
+
     let text = 'Create My Song!';
     if (creditCost !== undefined) {
       if (creditCost === 0) {
@@ -19,12 +28,16 @@ export default function CreateButton({ isLoading, onClick, creditCost }: CreateB
     return text;
   };
 
+  const isDisabled = isLoading || disabled;
+
   return (
     <button
       onClick={onClick}
-      disabled={isLoading}
-      className={`mt-8 flex w-full items-center justify-center gap-3 rounded-full bg-[#EE8220] px-8 py-4 text-xl font-semibold text-white transition ${
-        isLoading ? 'cursor-wait opacity-80' : 'hover:bg-[#E0710A]'
+      disabled={isDisabled}
+      className={`mt-8 flex w-full items-center justify-center gap-3 rounded-full px-8 py-4 text-xl font-semibold text-white transition ${
+        isDisabled
+          ? 'cursor-not-allowed bg-gray-400 opacity-60'
+          : 'bg-[#EE8220] hover:bg-[#E0710A]'
       }`}
     >
       {isLoading ? (

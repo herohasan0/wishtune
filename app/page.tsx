@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -38,6 +38,8 @@ export default function Home() {
   const [nameError, setNameError] = useState(false);
   const [songsCreatedCount, setSongsCreatedCount] = useState<number>(0);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [showCreditError, setShowCreditError] = useState(false);
+  const creditStatusRef = useRef<HTMLDivElement>(null);
 
 
   // Fetch credits using React Query
@@ -221,9 +223,21 @@ export default function Home() {
       trackFormSubmit('song_creation', false);
       trackError('song_creation_error', error instanceof Error ? error.message : 'Unknown error');
 
-      if (axios.isAxiosError(error) && error.response?.data?.error) {
-        console.error('API Error:', error.response.data.error);
-        alert(error.response.data.error);
+      if (axios.isAxiosError(error) && error.response) {
+        const errorData = error.response.data;
+        const status = error.response.status;
+
+        // Handle rate limit errors (429)
+        if (status === 429) {
+          if (errorData.code === 'SUNO_RATE_LIMIT') {
+            alert('🎵 High demand right now!\n\nOur song generation service is experiencing high traffic. Please wait a few seconds and try again.');
+          } else {
+            alert('⏸️ Please slow down!\n\nYou\'re creating songs too quickly. Wait a moment and try again.');
+          }
+        } else {
+          // Other API errors
+          alert(errorData.error || 'Failed to create song. Please try again.');
+        }
       } else {
         console.error('Unknown Error:', error);
         alert(error instanceof Error ? error.message : 'Failed to create song. Please try again.');
@@ -243,6 +257,20 @@ export default function Home() {
       return;
     }
 
+    // Check if logged-in user has credits
+    if (session?.user && credits && credits.paidCredits === 0) {
+      // No credits available - show error and scroll to credit status
+      setShowCreditError(true);
+      trackError('validation_error', 'No credits available');
+
+      // Scroll to credit status
+      creditStatusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // Clear error after 5 seconds
+      setTimeout(() => setShowCreditError(false), 5000);
+      return;
+    }
+
     // For anonymous users, ensure visitorId is available
     if (!session?.user && !visitorId) {
       alert('Please wait a moment while we set things up...');
@@ -250,8 +278,9 @@ export default function Home() {
       return;
     }
 
-    // Clear any previous error
+    // Clear any previous errors
     setNameError(false);
+    setShowCreditError(false);
 
     if (celebrationType && selectedStyle) {
       trackSongCreationStep('create_clicked', {
@@ -310,7 +339,7 @@ export default function Home() {
             </div>
           )}
           
-          {session && <CreditStatus />}
+          {session && <CreditStatus ref={creditStatusRef} showError={showCreditError} />}
           
           <div className="rounded-[36px] border border-[#F3E4D6] bg-white/95 p-6 shadow-[0_25px_80px_rgba(207,173,138,0.25)] sm:p-10 md:p-12">
             {showFormLoading ? (
@@ -415,10 +444,12 @@ export default function Home() {
           </div>
 
           {showForm && !showFormLoading && (
-            <CreateButton 
-              isLoading={createSongMutation.isPending} 
+            <CreateButton
+              isLoading={createSongMutation.isPending}
               onClick={handleCreate}
               creditCost={session?.user && credits ? 1 : undefined}
+              disabled={session?.user && credits ? credits.paidCredits === 0 : false}
+              disabledText="⚠️ Insufficient Credits"
             />
           )}
 

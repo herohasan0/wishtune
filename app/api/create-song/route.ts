@@ -5,6 +5,7 @@ import { checkRateLimit, getClientIdentifier, RateLimitPresets } from '@/lib/rat
 import { db } from '@/lib/firebase';
 import { FieldValue } from 'firebase-admin/firestore';
 import axios from 'axios';
+import { logApiUsage } from '@/lib/cost-monitor';
 
 interface SongRequest {
   name: string;
@@ -15,10 +16,12 @@ interface SongRequest {
 }
 
 export async function POST(request: NextRequest) {
+  let visitorIdForLogging: string | undefined;
+
   try {
     const session = await auth();
 
-    // Apply rate limiting (5 songs per minute per user/IP)
+    // Apply rate limiting (3 songs per minute per user/IP)
     const identifier = getClientIdentifier(request, session?.user?.id);
     const rateLimitResult = checkRateLimit(identifier, RateLimitPresets.SONG_CREATION);
 
@@ -26,7 +29,7 @@ export async function POST(request: NextRequest) {
       const resetTime = new Date(rateLimitResult.reset).toISOString();
       return NextResponse.json(
         {
-          error: 'Too many requests. Please slow down.',
+          error: 'Too many requests. Please wait a moment and try again.',
           resetAt: resetTime,
         },
         {
@@ -43,6 +46,7 @@ export async function POST(request: NextRequest) {
 
     const body: SongRequest = await request.json();
     const { name, celebrationType, musicStyle, duration = 60, visitorId } = body;
+    visitorIdForLogging = visitorId;
 
     if (!name || !celebrationType || !musicStyle) {
       return NextResponse.json(
@@ -153,32 +157,61 @@ export async function POST(request: NextRequest) {
       const callBackUrl = `${baseUrl}/api/suno-callback${session?.user?.id ? `?userId=${session.user.id}` : ''}`;
       const sunoApiBaseUrl = process.env.SUNO_API_BASE_URL || 'https://api.sunoapi.org/api/v1';
 
-      // Call Suno API
-      const sunoResponse = await axios.post(
-        `${sunoApiBaseUrl}/generate`,
-        {
-          prompt: prompt,
-          customMode: false,
-          model: 'V5',
-          instrumental: false,
-          callBackUrl: callBackUrl,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
+      // Call Suno API with proper error handling
+      try {
+        const sunoResponse = await axios.post(
+          `${sunoApiBaseUrl}/generate`,
+          {
+            prompt: prompt,
+            customMode: false,
+            model: 'V5',
+            instrumental: false,
+            callBackUrl: callBackUrl,
           },
-        }
-      );
-
-      taskId = sunoResponse.data?.data?.taskId;
-
-      if (!taskId) {
-        console.error('Failed to get taskId from Suno API', sunoResponse.data);
-        return NextResponse.json(
-          { error: 'Failed to initiate song generation' },
-          { status: 500 }
+          {
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+          }
         );
+
+        taskId = sunoResponse.data?.data?.taskId;
+
+        if (!taskId) {
+          console.error('Failed to get taskId from Suno API', sunoResponse.data);
+          return NextResponse.json(
+            { error: 'Failed to initiate song generation' },
+            { status: 500 }
+          );
+        }
+      } catch (sunoError) {
+        // Handle Suno API rate limit (429) specifically
+        if (axios.isAxiosError(sunoError) && sunoError.response?.status === 429) {
+          console.error('Suno API rate limit exceeded');
+          return NextResponse.json(
+            {
+              error: 'Our song generation service is currently experiencing high demand. Please try again in a few seconds.',
+              code: 'SUNO_RATE_LIMIT'
+            },
+            { status: 429 }
+          );
+        }
+
+        // Handle other Suno API errors
+        if (axios.isAxiosError(sunoError)) {
+          console.error('Suno API error:', sunoError.response?.status, sunoError.response?.data);
+          return NextResponse.json(
+            {
+              error: 'Failed to connect to song generation service. Please try again.',
+              details: sunoError.response?.data?.message || 'Unknown error'
+            },
+            { status: sunoError.response?.status || 500 }
+          );
+        }
+
+        // Re-throw unexpected errors
+        throw sunoError;
       }
     }
 
@@ -239,9 +272,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Log API usage for cost monitoring (async, don't await)
+    logApiUsage({
+      endpoint: 'create-song',
+      userId: session?.user?.id,
+      visitorId: visitorId,
+      timestamp: new Date(),
+      cost: 1, // 1 credit per song
+      success: true,
+    });
+
     return NextResponse.json(pendingSong, { status: 200 });
   } catch (error) {
     console.error('Error creating song:', error);
+
+    // Log failed API calls too
+    logApiUsage({
+      endpoint: 'create-song',
+      userId: session?.user?.id,
+      visitorId: visitorIdForLogging,
+      timestamp: new Date(),
+      cost: 0,
+      success: false,
+    });
     return NextResponse.json(
       { 
         error: 'An unexpected error occurred while creating the song',

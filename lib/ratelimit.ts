@@ -132,9 +132,11 @@ export function getClientIdentifier(
  */
 export const RateLimitPresets = {
   // Strict limits for expensive operations
+  // Note: Suno API has a global limit of 20 requests per 10 seconds
+  // Our per-user limit helps distribute requests and prevent hitting Suno's limit
   SONG_CREATION: {
-    maxRequests: 5,
-    windowSeconds: 60, // 5 songs per minute
+    maxRequests: 3, // 3 songs per minute per user
+    windowSeconds: 60,
   },
 
   // Moderate limits for API calls

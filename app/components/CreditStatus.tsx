@@ -4,13 +4,18 @@ import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import Link from 'next/link';
+import { forwardRef } from 'react';
 
 interface CreditInfo {
   paidCredits: number;
   totalSongsCreated: number;
 }
 
-export default function CreditStatus() {
+interface CreditStatusProps {
+  showError?: boolean;
+}
+
+const CreditStatus = forwardRef<HTMLDivElement, CreditStatusProps>(({ showError = false }, ref) => {
   const { data: session } = useSession();
 
   // Use React Query to fetch credits (shares cache with other components)
@@ -50,9 +55,17 @@ export default function CreditStatus() {
   }
 
   const hasCredits = credits.paidCredits > 0;
+  const showNoCreditsError = showError && !hasCredits;
 
   return (
-    <div className="mb-6 rounded-lg border border-[#F3E4D6] bg-white/95 p-4 shadow-sm">
+    <div
+      ref={ref}
+      className={`mb-6 rounded-lg border p-4 shadow-sm transition-all ${
+        showNoCreditsError
+          ? 'border-red-300 bg-red-50 ring-2 ring-red-200'
+          : 'border-[#F3E4D6] bg-white/95'
+      }`}
+    >
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-[#2F1E14]">Your Credits</h3>
@@ -62,16 +75,25 @@ export default function CreditStatus() {
                 💳 {credits.paidCredits} credit{credits.paidCredits !== 1 ? 's' : ''}
               </span>
             ) : (
-              <span className="font-medium text-orange-600">
+              <span className={`font-medium ${showNoCreditsError ? 'text-red-600' : 'text-orange-600'}`}>
                 ⚠️ No credits available
               </span>
             )}
           </div>
+          {showNoCreditsError && (
+            <p className="mt-2 text-xs font-medium text-red-600">
+              ❌ You need credits to create songs. Please buy credits to continue.
+            </p>
+          )}
         </div>
         {!hasCredits && (
           <Link
             href="/buy-credits"
-            className="rounded-lg bg-[#8F6C54] px-4 py-2 text-sm font-medium text-white hover:bg-[#7A5A45] transition-colors inline-block"
+            className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors inline-block ${
+              showNoCreditsError
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'bg-[#8F6C54] hover:bg-[#7A5A45]'
+            }`}
           >
             Buy Credits
           </Link>
@@ -79,4 +101,8 @@ export default function CreditStatus() {
       </div>
     </div>
   );
-}
+});
+
+CreditStatus.displayName = 'CreditStatus';
+
+export default CreditStatus;
