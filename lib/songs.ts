@@ -196,3 +196,35 @@ export async function updateSongStatusByTaskId(
     };
   }
 }
+
+/**
+ * Delete a song from the database
+ */
+export async function deleteSong(
+  songId: string,
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const songRef = db.collection(SONGS_COLLECTION).doc(songId);
+    const songDoc = await songRef.get();
+
+    if (!songDoc.exists) {
+      return { success: false, error: 'Song not found' };
+    }
+
+    const songData = songDoc.data() as SongDocument;
+
+    // Verify ownership
+    if (songData.userId !== userId) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    await songRef.delete();
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete song',
+    };
+  }
+}
