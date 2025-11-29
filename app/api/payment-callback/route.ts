@@ -38,6 +38,13 @@ function getRedirectOrigin(request: NextRequest): string {
 async function processPayment(request: NextRequest, token: string, queryParams: Record<string, string>, body: any) {
   const origin = getRedirectOrigin(request);
 
+  console.log('💳 Payment callback received:', {
+    token,
+    queryParams,
+    hasBody: !!body,
+    origin
+  });
+
   try {
     // 1. Idempotency Check: Check if transaction already exists
     const transactionRef = db.collection('transactions').doc(token);
@@ -46,7 +53,7 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
     if (transactionDoc.exists) {
       const data = transactionDoc.data();
       if (data?.status === 'SUCCESS') {
-
+        console.log('⚠️ Duplicate payment callback detected (already processed):', { token });
         return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
       }
     }
@@ -80,7 +87,7 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
       'payment/iyzipos/checkoutform/auth/ecom/detail',
       detailRequestData
     );
-    
+
     const detailData = detailResponse.data as {
       paymentStatus?: string;
       itemTransactions?: Array<{ itemId?: string }>;
@@ -88,10 +95,15 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
       [key: string]: unknown;
     };
 
-
+    console.log('🔍 Payment verification response:', {
+      token,
+      paymentStatus: detailData.paymentStatus,
+      conversationId: detailData.conversationId,
+      itemCount: detailData.itemTransactions?.length || 0
+    });
 
     if (detailData.paymentStatus !== 'SUCCESS') {
-
+      console.log('❌ Payment failed:', { token, status: detailData.paymentStatus });
       return NextResponse.redirect(`${origin}/?payment=failed`, { status: 303 });
     }
 
@@ -105,41 +117,48 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
 
     // Fallback: Check paymentSessions collection if userId is still missing
     if (!userId) {
-
+      console.log('🔎 User ID not found in session or conversationId, checking paymentSessions:', { token });
       try {
         const paymentSessionDoc = await db.collection('paymentSessions').doc(token).get();
         if (paymentSessionDoc.exists) {
           const sessionData = paymentSessionDoc.data();
           userId = sessionData?.userId;
           conversationId = sessionData?.conversationId; // Update conversationId if found
-
+          console.log('✅ User ID recovered from paymentSessions:', { userId, conversationId });
         } else {
-
+          console.log('⚠️ Payment session not found in Firestore:', { token });
         }
       } catch (error) {
-
+        console.error('❌ Error fetching payment session:', error);
       }
     }
 
     if (!userId) {
-
+      console.log('❌ User session lost, cannot process payment:', { token });
       return NextResponse.redirect(`${origin}/?error=session_lost`, { status: 303 });
     }
 
     // 4. Get Package Details
     const itemTransactions = detailData.itemTransactions || [];
     const itemId = itemTransactions[0]?.itemId;
-    
-    if (!itemId) {
 
+    if (!itemId) {
+      console.log('❌ No item ID found in payment:', { token });
       return NextResponse.redirect(`${origin}/?error=no_item_id`, { status: 303 });
     }
-    
+
     const creditPackage = await getCreditPackageById(itemId);
     if (!creditPackage) {
-
+      console.log('❌ Credit package not found:', { itemId, token });
       return NextResponse.redirect(`${origin}/?error=package_not_found`, { status: 303 });
     }
+
+    console.log('📦 Credit package found:', {
+      itemId,
+      credits: creditPackage.credits,
+      userId,
+      token
+    });
 
     // 5. Atomic Transaction: Record Transaction + Add Credits
     try {
@@ -181,17 +200,22 @@ async function processPayment(request: NextRequest, token: string, queryParams: 
           providerResponse: detailData
         });
       });
-      
 
+      console.log('✅ Payment processed successfully:', {
+        token,
+        userId,
+        credits: creditPackage.credits,
+        itemId
+      });
       return NextResponse.redirect(`${origin}/?payment=success`, { status: 303 });
 
     } catch (error) {
-
+      console.error('❌ Transaction failed:', { token, userId, error });
       return NextResponse.redirect(`${origin}/?error=transaction_failed`, { status: 303 });
     }
 
   } catch (error) {
-
+    console.error('❌ Payment processing failed:', { token, error });
     return NextResponse.redirect(`${origin}/?error=processing_failed`, { status: 303 });
   }
 }
@@ -228,23 +252,24 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (error) {
-
+      console.error('❌ Error parsing POST request body:', error);
     }
-    
+
     const token = (body?.token as string | undefined) || queryParams?.token;
-    
+
     if (!token) {
-      return NextResponse.json({ 
+      console.log('⚠️ POST callback received without token:', { queryParams, hasBody: !!body });
+      return NextResponse.json({
         success: false,
         message: 'No token found in callback',
         received: { queryParams, body: body || bodyText || null }
       }, { status: 400 });
     }
-    
+
     return processPayment(request, token, queryParams, body);
 
   } catch (error) {
-
+    console.error('❌ POST callback handler error:', error);
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }
