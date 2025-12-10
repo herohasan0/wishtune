@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     // 6. Initialize Polar SDK
     const polar = new Polar({
       accessToken: process.env.POLAR_ACCESS_TOKEN,
-      server: "sandbox"
+      server: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
     });
 
     // 7. Create checkout session

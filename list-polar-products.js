@@ -9,7 +9,7 @@ async function listProducts() {
 
   const polar = new Polar({
     accessToken: token,
-    server: 'sandbox',
+    server: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox',
   });
 
   try {
