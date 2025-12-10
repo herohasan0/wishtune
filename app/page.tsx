@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { clientDb, signInWithSessionToken } from '@/lib/firebaseClient';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import NameInput from './components/NameInput';
@@ -42,7 +44,6 @@ export default function Home() {
   const creditStatusRef = useRef<HTMLDivElement>(null);
 
 
-  // Fetch credits using React Query
   const {
     data: creditsData,
     isLoading: creditsLoading,
@@ -85,20 +86,64 @@ export default function Home() {
     return setupPageExitTracking('home_page');
   }, []);
 
-  // Check for payment success in URL and refresh credits
+  // Real-time updates for credits
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    const setupRealtimeListener = async () => {
+      try {
+        // Authenticate with Firebase using NextAuth session
+        const signedIn = await signInWithSessionToken();
+
+        if (!signedIn) {
+          console.error('Failed to sign in to Firebase Auth');
+          return;
+        }
+
+        const creditDocRef = doc(clientDb, 'userCredits', session.user.id);
+
+        unsubscribe = onSnapshot(creditDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data() as CreditInfo;
+            // Update React Query cache directly
+            queryClient.setQueryData(['credits'], { credits: data });
+            
+            // If payment success showed, we can update logic/state here if needed
+            // But automatic UI update via QueryCache is sufficient
+          } else {
+             // Handle case where document doesn't exist yet (e.g. new user)
+             // Usually handled by API creating it on first request, but good to be safe
+          }
+        }, (error) => {
+          console.error("Error listening to credit updates:", error);
+        });
+      } catch (error) {
+        console.error('Error setting up real-time credit listener:', error);
+      }
+    };
+
+    setupRealtimeListener();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [session?.user?.id, queryClient]);
+
+  // Check for payment success in URL for visual feedback only (no polling needed)
   useEffect(() => {
     if (typeof window !== 'undefined' && session?.user) {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('payment') === 'success') {
         setShowPaymentSuccess(true);
-        // Refresh credits using React Query
-        refetchCredits();
         // Remove query parameter from URL
         window.history.replaceState({}, '', window.location.pathname);
-        // Message will stay visible until user closes it manually
       }
     }
-  }, [session, refetchCredits]);
+  }, [session]);
 
   // Check anonymous status from server
   const { data: anonymousStatus } = useQuery({

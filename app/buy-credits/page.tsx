@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import Link from 'next/link';
+import { PolarEmbedCheckout } from '@polar-sh/checkout/embed';
 import Header from '../components/Header';
 import BackgroundBlobs from '../components/BackgroundBlobs';
-import Payment from '../components/Payment';
 import { trackButtonClick, setupPageExitTracking, trackPurchase } from '../utils/analytics';
 
 interface CreditInfo {
@@ -25,26 +25,14 @@ interface CreditPackage {
   price: number;
   popular?: boolean;
   description: string;
+  polarProductId?: string;
 }
 
 export default function BuyCreditsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [selectedPlan, setSelectedPlan] = useState<CreditPackage | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [formResponse, setFormResponse] = useState<string | null>(null);
-  const [isEditingBilling, setIsEditingBilling] = useState(false);
-  
-  // Form state
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    address: '',
-    city: '',
-    country: '',
-    shippingContactName: '',
-    billingContactName: '',
-  });
+  // Form state removed as we go directly to checkout
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -99,152 +87,44 @@ export default function BuyCreditsPage() {
       'USD',
       [{ name: pkg.name, quantity: 1, price: pkg.price }]
     );
+    console.log('Purchase tracked:', pkg);
     
-    setSelectedPlan(pkg);
-    setShowForm(true);
-    // Pre-fill email from session if available
-    if (session?.user?.email) {
-      setFormData(prev => ({ ...prev, email: session.user.email || '' }));
-    }
+    createCheckoutMutation.mutate({
+      packageId: pkg.id,
+      // We no longer collect billing details upfront
+    });
   };
+ 
+  // createCheckoutMutation definition remains here...
 
-  // Payment type definitions
-  interface PaymentBuyer {
-    id: string;
-    name: string;
-    surname: string;
-    identityNumber: string;
-    email: string;
-    gsmNumber: string;
-    registrationAddress: string;
-    city: string;
-    country: string;
-  }
+  // handleFormSubmit and handleCloseForm removed
 
-  interface PaymentAddress {
-    address: string;
-    contactName: string;
-    city: string;
-    country: string;
-  }
-
-  interface PaymentBasketItem {
-    id: string;
-    price: number;
-    name: string;
-    category1: string;
-    itemType: string;
-  }
-
-  interface PaymentData {
-    locale: string;
-    price: number;
-    paidPrice: number;
-    currency: string;
-    callbackUrl: string;
-    buyer: PaymentBuyer;
-    shippingAddress: PaymentAddress;
-    billingAddress: PaymentAddress;
-    basketItems: PaymentBasketItem[];
-  }
-
-  // Initialize payment form mutation
-  const initializeFormMutation = useMutation({
-    mutationFn: async (data: PaymentData) => {
-      const response = await axios.post<{ checkoutFormContent: string }>("/api/initialize-form", data);
+  const createCheckoutMutation = useMutation({
+    mutationFn: async (data: { packageId: string; billingDetails?: { fullName?: string; email?: string; address?: string; city?: string; country?: string } }) => {
+      const response = await axios.post<{ checkoutUrl: string; checkoutId: string }>(
+        '/api/checkout',
+        data
+      );
       return response.data;
     },
-    onSuccess: (data) => {
-      setFormResponse(data.checkoutFormContent);
-      setShowForm(false);
+    onSuccess: async (data) => {
+      try {
+        await PolarEmbedCheckout.init();
+        await PolarEmbedCheckout.create(data.checkoutUrl);
+        // Checkout opened successfully
+      } catch (error) {
+        console.error('Failed to open embedded checkout:', error);
+        // Fallback or alert
+        window.location.href = data.checkoutUrl;
+      }
     },
-    onError: (error) => {
-      alert("Failed to initialize payment. Please try again.");
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || error?.message || 'Failed to initialize checkout. Please try again.';
+      alert(message);
     },
   });
 
-  // Helper function to prepare payment data
-  const preparePaymentData = (plan: CreditPackage) => {
-    // Split full name into name and surname
-    const nameParts = formData.fullName.trim().split(/\s+/);
-    const name = nameParts[0] || '';
-    const surname = nameParts.slice(1).join(' ') || name; // Use first name as surname if only one word
-    
-    const isTurkey = formData.country.trim().toLowerCase() === 'turkey';
-    
-    return {
-      locale: isTurkey ? "tr" : "en",
-      price: plan.price,
-      paidPrice: plan.price,
-      currency: isTurkey ? "TRY" : "USD",
-      conversationId: session?.user?.id,
-      callbackUrl: `${window.location.origin}/api/payment-callback`,
-      buyer: {
-        id: session?.user?.email?.replace(/[^a-zA-Z0-9]/g, '') || `BY${Date.now()}`,
-        name: name,
-        surname: surname,
-        identityNumber: "11111111111", // Placeholder as per plan
-        email: session?.user?.email || '',
-        gsmNumber: "+905555555555", // Placeholder as per plan
-        registrationAddress: formData.address,
-        city: formData.city,
-        country: formData.country,
-      },
-      shippingAddress: {
-        contactName: formData.shippingContactName || formData.fullName,
-        city: formData.city,
-        country: formData.country,
-        address: formData.address,
-      },
-      billingAddress: {
-        contactName: formData.billingContactName || formData.fullName,
-        city: formData.city,
-        country: formData.country,
-        address: formData.address,
-      },
-      basketItems: [
-        {
-          id: plan.id,
-          price: plan.price,
-          name: plan.name,
-          category1: "Credits",
-          itemType: "VIRTUAL"
-        }
-      ]
-    };
-  };
 
-  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!selectedPlan) return;
-    
-    const data = preparePaymentData(selectedPlan);
-    initializeFormMutation.mutate(data);
-  };
-
-  const handleSaveBillingAddress = () => {
-    if (!selectedPlan) return;
-    
-    setIsEditingBilling(false);
-    const data = preparePaymentData(selectedPlan);
-    initializeFormMutation.mutate(data);
-  };
-
-  const handleCloseForm = () => {
-    setShowForm(false);
-    setSelectedPlan(null);
-    setFormResponse(null);
-    // Reset form data
-    setFormData({
-      fullName: '',
-      email: session?.user?.email || '',
-      address: '',
-      city: '',
-      country: '',
-      shippingContactName: '',
-      billingContactName: '',
-    });
-  };
 
   if (status === 'loading' || packagesLoading) {
     return (
@@ -262,171 +142,6 @@ export default function BuyCreditsPage() {
 
   if (!session?.user) {
     return null; // Will redirect
-  }
-
-  // Show payment form if we have a response
-  if (formResponse) {
-    return (
-      <main className="relative min-h-screen text-[#3F2A1F]">
-        <BackgroundBlobs />
-        <Header />
-        <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-8 px-4">
-          <button
-            onClick={handleCloseForm}
-            className="flex items-center gap-2 self-start -ml-2 px-2 py-2 hover:opacity-70 transition-opacity"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#8F6C54]/30 bg-white/50">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#2F1E14]">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-            </div>
-            <span className="text-sm font-medium text-[#2F1E14]">Back</span>
-          </button>
-          
-          {/* Billing Address Section */}
-          <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F18A24]">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                  <circle cx="12" cy="10" r="3"></circle>
-                </svg>
-                <h2 className="text-sm font-semibold text-[#2F1E14]">Billing Address</h2>
-              </div>
-              {!isEditingBilling && (
-                <button
-                  onClick={() => setIsEditingBilling(true)}
-                  className="flex items-center gap-1 text-xs font-medium text-[#F18A24] hover:text-[#E07212] transition-colors"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                  </svg>
-                  Edit
-                </button>
-              )}
-            </div>
-            
-            {isEditingBilling ? (
-              <div className="space-y-3">
-                <div>
-                  <input
-                    type="text"
-                    name="editFullName"
-                    placeholder="Full Name"
-                    autoComplete="name"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                    className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    name="editAddress"
-                    placeholder="Address"
-                    autoComplete="street-address"
-                    value={formData.address}
-                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    name="editCity"
-                    placeholder="City"
-                    autoComplete="address-level2"
-                    value={formData.city}
-                    onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                    className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    name="editCountry"
-                    placeholder="Country"
-                    autoComplete="country-name"
-                    value={formData.country}
-                    onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
-                    className="w-full rounded-lg border border-[#F3E4D6] px-3 py-2 text-sm text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                  />
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={() => setIsEditingBilling(false)}
-                    className="flex-1 rounded-lg border border-[#F3E4D6] px-3 py-2 text-xs font-medium text-[#8F6C54] hover:bg-[#FFF5EB] transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveBillingAddress}
-                    disabled={initializeFormMutation.isPending}
-                    className="flex-1 rounded-lg bg-[#F18A24] px-3 py-2 text-xs font-medium text-white hover:bg-[#E07212] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {initializeFormMutation.isPending ? 'Updating...' : 'Save'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-sm text-[#2F1E14] space-y-1">
-                <p>{formData.fullName || '-'}</p>
-                <p className="text-[#8F6C54]">{session?.user?.email || '-'}</p>
-                <p>{formData.address || '-'}</p>
-                <p>{formData.city || '-'}, {formData.country || '-'}</p>
-              </div>
-            )}
-          </div>
-          
-          <div className="rounded-lg border border-[#F3E4D6] bg-white/95 p-6 shadow-sm">
-            <Payment formResponse={formResponse} />
-          </div>
-          
-          {/* Trust Indicators */}
-          <div className="rounded-lg border border-[#F3E4D6] bg-linear-to-r from-[#FFF5EB] to-white p-6 shadow-sm">
-            <div className="flex flex-col items-center gap-4 text-center">
-              {/* Security Badge */}
-              <div className="flex items-center gap-2 text-[#2F1E14]">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F18A24]">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-                <span className="text-lg font-semibold">Secure Payment</span>
-              </div>
-              
-              {/* Trust Text */}
-              <p className="text-sm text-[#8F6C54] max-w-md">
-                Your payment information is encrypted and secure. We use industry-standard SSL encryption to protect your data. Processed by heroicsoft.
-              </p>
-              
-              {/* Security Features */}
-              <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
-                <div className="flex items-center gap-1.5 text-xs text-[#8F6C54]">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F18A24]">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    <path d="M9 12l2 2 4-4"></path>
-                  </svg>
-                  <span>256-bit SSL</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-[#8F6C54]">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F18A24]">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    <path d="M9 12l2 2 4-4"></path>
-                  </svg>
-                  <span>PCI Compliant</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-[#8F6C54]">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#F18A24]">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    <path d="M9 12l2 2 4-4"></path>
-                  </svg>
-                  <span>Secure Checkout</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
   }
 
   return (
@@ -590,116 +305,7 @@ export default function BuyCreditsPage() {
         </div>
       </div>
 
-      {/* User Information Form Modal */}
-      {showForm && selectedPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border border-[#F3E4D6] bg-white shadow-lg">
-            <div className="p-6">
-              {/* Selected Plan Info */}
-              <div className="mb-6 rounded-lg border border-[#F3E4D6] bg-[#FFF5EB] p-4 relative">
-                <button
-                  onClick={handleCloseForm}
-                  className="absolute top-4 right-4 text-[#8F6C54] hover:text-[#2F1E14] transition-colors"
-                >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-                <h3 className="text-lg font-semibold text-[#2F1E14]">{selectedPlan.name}</h3>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-[#F18A24]">${selectedPlan.price.toFixed(2)}</span>
-                  <span className="text-sm text-[#8F6C54]">for {selectedPlan.credits} credits</span>
-                </div>
-              </div>
 
-              <form onSubmit={handleFormSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="fullName" className="block text-sm font-medium text-[#2F1E14] mb-1">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="fullName"
-                    name="fullName"
-                    autoComplete="name"
-                    required
-                    value={formData.fullName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                    className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="address" className="block text-sm font-medium text-[#2F1E14] mb-1">
-                    Address *
-                  </label>
-                  <input
-                    type="text"
-                    id="address"
-                    name="address"
-                    autoComplete="street-address"
-                    required
-                    value={formData.address}
-                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label htmlFor="city" className="block text-sm font-medium text-[#2F1E14] mb-1">
-                      City *
-                    </label>
-                    <input
-                      type="text"
-                      id="city"
-                      name="city"
-                      autoComplete="address-level2"
-                      required
-                      value={formData.city}
-                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="country" className="block text-sm font-medium text-[#2F1E14] mb-1">
-                      Country *
-                    </label>
-                    <input
-                      type="text"
-                      id="country"
-                      name="country"
-                      autoComplete="country-name"
-                      required
-                      value={formData.country}
-                      onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
-                      className="w-full rounded-lg border border-[#F3E4D6] px-4 py-2 text-[#2F1E14] focus:border-[#F18A24] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={handleCloseForm}
-                    className="flex-1 rounded-lg border border-[#F3E4D6] px-4 py-3 text-sm font-semibold text-[#8F6C54] hover:bg-[#FFF5EB] transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={initializeFormMutation.isPending}
-                    className="flex-1 rounded-lg bg-[#F18A24] px-4 py-3 text-sm font-semibold text-white hover:bg-[#E07212] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {initializeFormMutation.isPending ? 'Processing...' : 'Continue'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

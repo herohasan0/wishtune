@@ -57,5 +57,7 @@ docker-compose.yml
 next-env.d.ts
 
 # Scripts (if not needed in production)
+# Scripts (if not needed in production)
 scripts
+list-polar-products.js
 

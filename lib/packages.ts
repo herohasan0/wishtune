@@ -10,6 +10,7 @@ export interface CreditPackage {
   popular?: boolean;
   description: string;
   active?: boolean;
+  polarProductId?: string;
   createdAt?: FirebaseFirestore.Timestamp | null;
   updatedAt?: FirebaseFirestore.Timestamp | null;
 }
@@ -27,10 +28,13 @@ export async function getCreditPackages(): Promise<CreditPackage[]> {
         .orderBy('price', 'asc')
         .get();
 
-      const packages = packagesSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as CreditPackage[];
+      const packages = packagesSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+        };
+      }) as CreditPackage[];
 
       return packages;
     } catch (orderByError: unknown) {
@@ -42,10 +46,13 @@ export async function getCreditPackages(): Promise<CreditPackage[]> {
           .where('active', '==', true)
           .get();
 
-        const packages = packagesSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as CreditPackage[];
+        const packages = packagesSnapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+          };
+        }) as CreditPackage[];
 
         const sorted = packages.sort((a, b) => a.price - b.price);
         return sorted;
@@ -60,10 +67,13 @@ export async function getCreditPackages(): Promise<CreditPackage[]> {
         .collection(PACKAGES_COLLECTION)
         .get();
 
-      const allPackages = packagesSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as CreditPackage[];
+      const allPackages = packagesSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+        };
+      }) as CreditPackage[];
 
       // Filter active packages (or packages without active field, treating them as active)
       const activePackages = allPackages.filter(
@@ -93,9 +103,10 @@ export async function getCreditPackageById(packageId: string): Promise<CreditPac
       return null;
     }
 
+    const data = packageDoc.data();
     return {
       id: packageDoc.id,
-      ...packageDoc.data(),
+      ...data,
     } as CreditPackage;
   } catch (error) {
     throw error;

@@ -48,10 +48,9 @@ services:
       # OR Firebase Admin SDK (Option 2: Use service account file path)
       # - FIREBASE_SERVICE_ACCOUNT_KEY_PATH=/app/firebase-service-account.json
       
-      # Iyzico Payment Gateway
-      - IYZICO_API_KEY=${IYZICO_API_KEY}
-      - IYZICO_SECRET_KEY=${IYZICO_SECRET_KEY}
-      - IYZICO_BASE_URL=${IYZICO_BASE_URL}
+      # Polar.sh Payment Gateway
+      - POLAR_ACCESS_TOKEN=${POLAR_ACCESS_TOKEN}
+      - POLAR_WEBHOOK_SECRET=${POLAR_WEBHOOK_SECRET}
       
       # Node Environment
       - NODE_ENV=production

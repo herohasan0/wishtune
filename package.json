@@ -13,9 +13,11 @@
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
     "@fingerprintjs/fingerprintjs": "^5.0.1",
+    "@polar-sh/checkout": "^0.1.14",
+    "@polar-sh/nextjs": "^0.9.1",
+    "@polar-sh/sdk": "^0.41.5",
     "@tanstack/react-query": "^5.90.10",
     "axios": "^1.13.2",
-    "crypto-js": "^4.2.0",
     "firebase": "^12.6.0",
     "firebase-admin": "^13.6.0",
     "next": "16.0.7",
