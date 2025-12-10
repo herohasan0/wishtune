@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
         packageId: packageId,
         credits: creditPackage.credits.toString(),
       },
-      successUrl: process.env.SUCCESS_URL || `${request.nextUrl.origin}/?payment=success`,
-      embedOrigin: request.nextUrl.origin, // Required for embedded checkout
+      successUrl: "https://wishtune.ai/?payment=success",
+      embedOrigin: "https://wishtune.ai", // Required for embedded checkout
 
     });
 
