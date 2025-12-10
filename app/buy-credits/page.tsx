@@ -99,6 +99,22 @@ export default function BuyCreditsPage() {
 
   // handleFormSubmit and handleCloseForm removed
 
+  // Initialize Polar Checkout on mount
+  useEffect(() => {
+    PolarEmbedCheckout.init();
+    
+    // Add listener for close event as a fallback/verification
+    const handleClose = (e: Event) => {
+      console.log('Polar checkout close event received', e);
+      // In case the library doesn't auto-close, we might need to handle it. 
+      // But typically init() handles the UI removal. 
+      // We can reload or refresh state if needed.
+    };
+    
+    window.addEventListener('polar-checkout-close', handleClose);
+    return () => window.removeEventListener('polar-checkout-close', handleClose);
+  }, []);
+
   const createCheckoutMutation = useMutation({
     mutationFn: async (data: { packageId: string; billingDetails?: { fullName?: string; email?: string; address?: string; city?: string; country?: string } }) => {
       const response = await axios.post<{ checkoutUrl: string; checkoutId: string }>(
@@ -109,7 +125,6 @@ export default function BuyCreditsPage() {
     },
     onSuccess: async (data) => {
       try {
-        await PolarEmbedCheckout.init();
         await PolarEmbedCheckout.create(data.checkoutUrl);
         // Checkout opened successfully
       } catch (error) {
