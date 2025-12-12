@@ -8,63 +8,61 @@ export default function Header() {
   const { data: session } = useSession();
 
   return (
-    <header className="w-full px-4 py-5 sm:px-6">
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between">
+    <header className="w-full border-b border-gray-100 bg-white/50 backdrop-blur-md sticky top-0 z-50">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full">
+          <div className="relative h-8 w-8 overflow-hidden rounded-full">
             <Image
               src="/icon-96.png"
               alt="WishTune Logo"
-              width={96}
-              height={96}
-              className="text-black rounded-full"
+              fill
+              className="object-cover"
             />
           </div>
-          <span className="text-3xl font-extrabold">WishTune</span>
+          <span className="text-xl font-bold tracking-tight text-gray-900">WishTune</span>
         </Link>
-        <div className="flex items-center gap-5">
+        <nav className="flex items-center gap-6">
           {session?.user ? (
             <Link
               href="/account"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-[#FFF5EB] transition-colors"
+              className="group flex items-center gap-2 rounded-full border border-gray-200 bg-white pl-1 pr-3 py-1 text-sm font-medium text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50"
             >
               {session.user.image ? (
-                <Image
-                  src={session.user.image}
-                  alt={session.user.name || 'User'}
-                  width={32}
-                  height={32}
-                  className="rounded-full"
-                />
+                <div className="relative h-6 w-6 overflow-hidden rounded-full">
+                   <Image
+                    src={session.user.image}
+                    alt={session.user.name || 'User'}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
               ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F18A24] text-white text-sm font-semibold">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-600">
                   {(session.user.name || session.user.email || 'U')[0].toUpperCase()}
                 </div>
               )}
-              <span className="text-sm font-medium text-[#2F1E14]">
-                My Songs
-              </span>
+              <span>My Songs</span>
             </Link>
           ) : (
             <>
               <Link
                 href="/account"
-                className="text-sm font-medium text-[#2F1E14] hover:text-[#F18A24] transition-colors"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
               >
                 My Songs
               </Link>
               <button
                 onClick={() => signIn('google')}
-                className="rounded-full bg-[#F18A24] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#E07212]"
+                className="rounded-full bg-[#F18A24] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#E07212] hover:shadow focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 Log In
               </button>
             </>
           )}
-        </div>
+        </nav>
       </div>
     </header>
   );
